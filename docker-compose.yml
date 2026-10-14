@@ -1,0 +1,61 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_USER: ${LOCAL_MARIADB_USER:-vertex}
+      MARIADB_PASSWORD: ${LOCAL_MARIADB_PASSWORD:?Set LOCAL_MARIADB_PASSWORD in the root .env file}
+      MARIADB_DATABASE: ${LOCAL_MARIADB_DATABASE:-vertex_trading}
+      MARIADB_ROOT_PASSWORD: ${LOCAL_MARIADB_ROOT_PASSWORD:?Set LOCAL_MARIADB_ROOT_PASSWORD in the root .env file}
+    ports:
+      - "3306:3306"
+    volumes:
+      - vertex_maria_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: database/backend/Dockerfile
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_USER: ${LOCAL_MARIADB_USER:-vertex}
+      DB_PASSWORD: ${LOCAL_MARIADB_PASSWORD:?Set LOCAL_MARIADB_PASSWORD in the root .env file}
+      DB_NAME: ${LOCAL_MARIADB_DATABASE:-vertex_trading}
+      NODE_ENV: development
+      PORT: 4000
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-development-access-secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-development-refresh-secret}
+      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:-local-development-admin-secret}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-local-development-encryption-placeholder}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      TRUST_PROXY_HOPS: 0
+    ports:
+      - "4000:4000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:4000/ws}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  vertex_maria_data:

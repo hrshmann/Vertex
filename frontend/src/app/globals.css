@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 10 14 20;
+  --surface: 16 21 31;
+  --surface-2: 22 28 42;
+  --border: 35 43 61;
+  --text: 231 236 245;
+  --muted: 107 119 148;
+}
+
+[data-theme="light"] {
+  --bg: 246 248 252;
+  --surface: 255 255 255;
+  --surface-2: 244 246 251;
+  --border: 224 229 238;
+  --text: 16 21 31;
+  --muted: 100 110 130;
+}
+
+html,
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+.vx-surface {
+  background-color: rgb(var(--surface));
+  border: 1px solid rgb(var(--border));
+}
+
+.vx-surface-2 {
+  background-color: rgb(var(--surface-2));
+}
+
+.vx-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(var(--border));
+}
+
+.vx-muted {
+  color: rgb(var(--muted));
+}
+
+.vx-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@keyframes vx-flash-up {
+  0% {
+    background-color: rgba(23, 199, 135, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes vx-flash-down {
+  0% {
+    background-color: rgba(255, 77, 106, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.vx-flash-up {
+  animation: vx-flash-up 600ms ease-out;
+}
+.vx-flash-down {
+  animation: vx-flash-down 600ms ease-out;
+}
+
+::selection {
+  background: rgba(61, 127, 255, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+}

@@ -1,0 +1,65 @@
+import { Router } from "express";
+import { getInstrumentBySymbol, listInstruments } from "../services/marketData/instrumentCache";
+import { getAllQuotes, getQuote } from "../services/marketData/quoteCache";
+import { getCandles, UnsupportedCandleRequest } from "../services/marketData/candles";
+import { asyncHandler } from "../utils/asyncHandler";
+import { ApiError } from "../middleware/errorHandler";
+
+export function marketsRouter() {
+  const router = Router();
+
+  router.get(
+    "/",
+    asyncHandler(async (_req, res) => {
+      const instruments = listInstruments();
+      const quotes = new Map(getAllQuotes().map((q) => [q.symbol, q]));
+      res.json(
+        instruments.map((i) => ({
+          symbol: i.symbol,
+          class: i.class,
+          isExecutable: i.isExecutable,
+          tradingEnabled: i.tradingEnabled,
+          provider: i.provider,
+          contractSize: i.contractSize,
+          minVolume: i.minVolume,
+          maxVolume: i.maxVolume,
+          volumeStep: i.volumeStep,
+          maxLeverage: i.maxLeverage,
+          quote: quotes.get(i.symbol) ?? null,
+        }))
+      );
+    })
+  );
+
+  router.get(
+    "/:symbol/quote",
+    asyncHandler(async (req, res) => {
+      const symbol = decodeURIComponent(req.params.symbol);
+      const instrument = getInstrumentBySymbol(symbol);
+      if (!instrument) throw new ApiError(404, `Unknown instrument: ${symbol}`);
+      const quote = getQuote(symbol);
+      if (!quote) throw new ApiError(503, `No quote received yet for ${symbol}`);
+      res.json(quote);
+    })
+  );
+
+  router.get(
+    "/:symbol/candles",
+    asyncHandler(async (req, res) => {
+      const symbol = decodeURIComponent(req.params.symbol);
+      const instrument = getInstrumentBySymbol(symbol);
+      if (!instrument) throw new ApiError(404, `Unknown instrument: ${symbol}`);
+      const timeframe = String(req.query.timeframe ?? "1H");
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      try {
+        const candles = await getCandles(instrument, timeframe, limit);
+        res.json({ symbol, timeframe, provider: instrument.provider, isIndicative: instrument.provider === "frankfurter", candles });
+      } catch (err) {
+        if (err instanceof UnsupportedCandleRequest) throw new ApiError(400, err.message);
+        throw err;
+      }
+    })
+  );
+
+  return router;
+}

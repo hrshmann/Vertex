@@ -20,11 +20,30 @@ Deploy the existing repository twice from the same codebase:
 | Frontend | `frontend/` | Next.js Node server |
 | API | `database/backend/` | Express API, MariaDB pool, market-data clients |
 
+### Hostinger Express app entry
+
+For the API application, set the Hostinger application root/working directory to
+`database/backend/`. Do not configure `server.js`: this backend is TypeScript and has no
+source `server.js`. TypeScript compiles `src/index.ts` to `dist/index.js`, as specified by the
+backend `tsconfig.json` and `package.json` `main`/`start` entries.
+
+Use these API settings in Hostinger:
+
+- Application type: **Express**
+- Node.js version: **22**
+- Build command: `npm ci && npm run build`
+- Entry/start command: `node dist/index.js` (equivalently, `npm run start`)
+
+The build creates `database/backend/dist/index.js` relative to the API root. Configure the
+entry path relative to that root as `dist/index.js`, not `server.js`. The process reads the
+platform-assigned `PORT` and the existing MariaDB connection from its environment. Starting
+the compiled entry does not run migrations.
+
 Keep `database/migrations/` in the repository for controlled, manual schema maintenance only.
 The API startup command does **not** run migrations. This project already has an initialized
 Hostinger schema; do not run migrations as part of this deployment.
 
-Use Node.js 20 or newer. Set each app's build command to:
+Use Node.js 22 for the API. Set each app's build command to:
 
 ```sh
 npm ci && npm run build

@@ -6,6 +6,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiError } from "../../middleware/errorHandler";
 import { logAudit } from "../../utils/audit";
 import { parseLimit } from "../../utils/pagination";
+import { evaluateRequirements } from "../../services/kyc/kycRules";
 
 export function adminUsersRouter() {
   const router = Router();
@@ -90,16 +91,39 @@ export function adminUsersRouter() {
     })
   );
 
-  const kycUpdateSchema = z.object({
-    status: z.enum(["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"]),
-    rejectionReason: z.string().optional(),
-  });
+  const kycUpdateSchema = z
+    .object({
+      status: z.enum(["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"]),
+      rejectionReason: z.string().trim().max(500).optional(),
+    })
+    .refine(
+      (b) => !["REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"].includes(b.status) || !!b.rejectionReason,
+      { message: "Give the user a reason, so they know what to fix.", path: ["rejectionReason"] }
+    );
+
+  const KYC_MESSAGES: Record<string, (reason?: string) => { title: string; body: string }> = {
+    APPROVED: () => ({ title: "Identity verified", body: "Your identity is verified. Withdrawals are now available." }),
+    REJECTED: (reason) => ({ title: "Verification declined", body: `We couldn't verify your identity: ${reason}` }),
+    ADDITIONAL_INFORMATION_REQUIRED: (reason) => ({ title: "More information needed", body: `Please update your documents: ${reason}` }),
+    UNDER_REVIEW: () => ({ title: "Documents under review", body: "We're reviewing your documents." }),
+    PENDING: () => ({ title: "Verification reopened", body: "Please upload your documents again." }),
+  };
 
   router.post(
     "/:id/kyc",
     requireRole("SUPER_ADMIN", "COMPLIANCE"),
     asyncHandler(async (req, res) => {
       const body = kycUpdateSchema.parse(req.body);
+      if (body.status === "APPROVED") {
+        const docs = await query(
+          `SELECT d.document_type, d.side FROM kyc_documents d JOIN kyc_profiles k ON k.id = d.kyc_profile_id
+           WHERE k.user_id = ?`,
+          [req.params.id]
+        );
+        if (!evaluateRequirements(docs.rows).complete) {
+          throw new ApiError(400, "This client hasn't provided all three documents, so they can't be approved yet.");
+        }
+      }
       await query(
         `UPDATE kyc_profiles SET status = ?, rejection_reason = ?, reviewed_by = ?, reviewed_at = now(), updated_at = now()
          WHERE user_id = ?`,
@@ -108,9 +132,10 @@ export function adminUsersRouter() {
       const result = await query(`SELECT * FROM kyc_profiles WHERE user_id = ?`, [req.params.id]);
       if (!result.rows[0]) throw new ApiError(404, "KYC profile not found");
 
+      const message = KYC_MESSAGES[body.status](body.rejectionReason);
       await query(
-        `INSERT INTO notifications (user_id, type, title, body) VALUES (?,'KYC_UPDATE','KYC status updated',?)`,
-        [req.params.id, `Your KYC status is now ${body.status}${body.rejectionReason ? `: ${body.rejectionReason}` : ""}`]
+        `INSERT INTO notifications (user_id, type, title, body) VALUES (?,'KYC_UPDATE',?,?)`,
+        [req.params.id, message.title, message.body]
       );
       await logAudit({
         actorType: "admin",

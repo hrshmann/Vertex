@@ -16,7 +16,7 @@ import crypto from "node:crypto";
 
 export function authRouter(demoEngine: DemoTradingEngine) {
   const router = Router();
-  router.use(authRateLimiter);
+  // The strict limiter guards password entry only; /me and /refresh run on every page load.
 
   const registerSchema = z.object({
     firstName: z.string().min(1).max(100),
@@ -30,6 +30,7 @@ export function authRouter(demoEngine: DemoTradingEngine) {
 
   router.post(
     "/register",
+    authRateLimiter,
     asyncHandler(async (req, res) => {
       const body = registerSchema.parse(req.body);
       if (body.password !== body.confirmPassword) {
@@ -81,6 +82,7 @@ export function authRouter(demoEngine: DemoTradingEngine) {
 
   router.post(
     "/login",
+    authRateLimiter,
     asyncHandler(async (req, res) => {
       const body = loginSchema.parse(req.body);
       const result = await query(
@@ -199,6 +201,7 @@ export function authRouter(demoEngine: DemoTradingEngine) {
   const forgotSchema = z.object({ email: z.string().email() });
   router.post(
     "/forgot-password",
+    authRateLimiter,
     asyncHandler(async (req, res) => {
       const { email } = forgotSchema.parse(req.body);
       const result = await query("SELECT id FROM users WHERE email = ?", [email]);
@@ -210,6 +213,86 @@ export function authRouter(demoEngine: DemoTradingEngine) {
         ok: true,
         message: "If that email exists, password reset instructions are unavailable until email delivery is configured.",
       });
+    })
+  );
+
+  const profileSchema = z.object({
+    firstName: z.string().trim().min(1).max(100).optional(),
+    lastName: z.string().trim().min(1).max(100).optional(),
+    mobile: z.string().trim().min(5).max(32).nullable().optional(),
+    country: z.string().length(2).toUpperCase().nullable().optional(),
+  });
+
+  router.patch(
+    "/me",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const body = profileSchema.parse(req.body);
+      await query(
+        `UPDATE users SET
+           first_name = COALESCE(?, first_name),
+           last_name = COALESCE(?, last_name),
+           mobile = IF(?, ?, mobile),
+           country = IF(?, ?, country),
+           updated_at = now()
+         WHERE id = ?`,
+        [
+          body.firstName ?? null,
+          body.lastName ?? null,
+          body.mobile !== undefined ? 1 : 0,
+          body.mobile ?? null,
+          body.country !== undefined ? 1 : 0,
+          body.country ?? null,
+          req.user!.sub,
+        ]
+      );
+      await logAudit({ actorType: "user", actorId: req.user!.sub, action: "PROFILE_UPDATED", ipAddress: req.ip });
+      const result = await query(
+        `SELECT id, first_name, last_name, email, mobile, country, email_verified_at, created_at FROM users WHERE id = ?`,
+        [req.user!.sub]
+      );
+      res.json(result.rows[0]);
+    })
+  );
+
+  const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(10),
+  });
+
+  router.post(
+    "/change-password",
+    requireAuth,
+    authRateLimiter,
+    asyncHandler(async (req, res) => {
+      const body = changePasswordSchema.parse(req.body);
+      const result = await query(`SELECT id, email, password_hash FROM users WHERE id = ?`, [req.user!.sub]);
+      const user = result.rows[0];
+      if (!user) throw new ApiError(404, "User not found");
+      if (!(await verifyPassword(body.currentPassword, user.password_hash))) {
+        throw new ApiError(400, "Your current password is incorrect.");
+      }
+      if (!isPasswordStrongEnough(body.newPassword)) {
+        throw new ApiError(400, "Use at least 10 characters, with upper and lower case letters and a number.");
+      }
+      if (await verifyPassword(body.newPassword, user.password_hash)) {
+        throw new ApiError(400, "Choose a password you haven't used for this account.");
+      }
+
+      await query(`UPDATE users SET password_hash = ?, updated_at = now() WHERE id = ?`, [
+        await hashPassword(body.newPassword),
+        user.id,
+      ]);
+      // Sign out every other device; this one gets a fresh session below.
+      await query(`UPDATE user_sessions SET revoked_at = UTC_TIMESTAMP(6) WHERE user_id = ? AND revoked_at IS NULL`, [user.id]);
+      await logAudit({ actorType: "user", actorId: user.id, action: "PASSWORD_CHANGED", ipAddress: req.ip });
+      await query(
+        `INSERT INTO notifications (user_id, type, title, body) VALUES (?,'SECURITY_ALERT','Password changed',?)`,
+        [user.id, "Your password was changed and your other devices were signed out. If this wasn't you, contact support."]
+      );
+
+      await issueSessionCookies(res, user.id, user.email);
+      res.json({ ok: true });
     })
   );
 

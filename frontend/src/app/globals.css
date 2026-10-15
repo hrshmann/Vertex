@@ -2,61 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: 10 14 20;
-  --surface: 16 21 31;
-  --surface-2: 22 28 42;
-  --border: 35 43 61;
-  --text: 231 236 245;
-  --muted: 107 119 148;
+/*
+ * Vertex palette. Values are "R G B" so Tailwind can apply opacity (bg-accent/10).
+ * Light is the calm account workspace; dark is tuned for long trading sessions.
+ * Green and red mean buy/sell and profit/loss only, never decoration.
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --canvas: 244 245 247;
+  --surface: 255 255 255;
+  --raised: 248 249 251;
+  --line: 226 229 234;
+  --ink: 18 22 28;
+  --muted: 94 102 117;
+  --accent: 76 91 212;
+  --accent-soft: 236 238 252;
+  --accent-ink: 255 255 255;
+  --buy: 11 143 98;
+  --buy-soft: 230 245 239;
+  --sell: 208 56 78;
+  --sell-soft: 251 235 238;
+  --warn: 168 107 0;
+  --warn-soft: 252 243 224;
+
+  /* Legacy variable names still referenced as rgb(var(--...)). */
+  --bg: var(--canvas);
+  --surface-2: var(--raised);
+  --border: var(--line);
+  --text: var(--ink);
 }
 
-[data-theme="light"] {
-  --bg: 246 248 252;
-  --surface: 255 255 255;
-  --surface-2: 244 246 251;
-  --border: 224 229 238;
-  --text: 16 21 31;
-  --muted: 100 110 130;
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: 12 15 20;
+  --surface: 19 23 31;
+  --raised: 26 31 41;
+  --line: 37 43 54;
+  --ink: 230 233 239;
+  --muted: 140 149 165;
+  --accent: 140 151 255;
+  --accent-soft: 32 36 66;
+  --accent-ink: 12 15 20;
+  --buy: 39 194 140;
+  --buy-soft: 16 46 37;
+  --sell: 255 99 119;
+  --sell-soft: 56 22 30;
+  --warn: 240 180 60;
+  --warn-soft: 52 40 16;
 }
 
 html,
 body {
-  background-color: rgb(var(--bg));
-  color: rgb(var(--text));
+  background-color: rgb(var(--canvas));
+  color: rgb(var(--ink));
+}
+
+body {
+  font-feature-settings: "tnum" 1; /* every figure lines up in columns */
 }
 
 * {
-  border-color: rgb(var(--border));
+  border-color: rgb(var(--line));
 }
 
-.vx-surface {
-  background-color: rgb(var(--surface));
-  border: 1px solid rgb(var(--border));
+:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-.vx-surface-2 {
-  background-color: rgb(var(--surface-2));
-}
-
-.vx-glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
-  backdrop-filter: blur(8px);
-  border: 1px solid rgb(var(--border));
-}
-
-.vx-muted {
-  color: rgb(var(--muted));
-}
-
-.vx-tabular {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+@layer components {
+  .vx-surface {
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+  }
+  .vx-surface-2 {
+    background-color: rgb(var(--raised));
+  }
+  .vx-glass {
+    background-color: rgb(var(--surface) / 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgb(var(--line));
+  }
+  .vx-muted {
+    color: rgb(var(--muted));
+  }
+  .vx-tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @keyframes vx-flash-up {
   0% {
-    background-color: rgba(23, 199, 135, 0.35);
+    background-color: rgb(var(--buy) / 0.28);
   }
   100% {
     background-color: transparent;
@@ -64,7 +103,7 @@ body {
 }
 @keyframes vx-flash-down {
   0% {
-    background-color: rgba(255, 77, 106, 0.35);
+    background-color: rgb(var(--sell) / 0.28);
   }
   100% {
     background-color: transparent;
@@ -77,8 +116,30 @@ body {
   animation: vx-flash-down 600ms ease-out;
 }
 
+/* The onboarding track fills in once, when the overview first renders. */
+@keyframes vx-track-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.vx-track-fill {
+  transform-origin: left;
+  animation: vx-track-fill 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-flash-up,
+  .vx-flash-down,
+  .vx-track-fill {
+    animation: none;
+  }
+}
+
 ::selection {
-  background: rgba(61, 127, 255, 0.35);
+  background: rgb(var(--accent) / 0.25);
 }
 
 ::-webkit-scrollbar {
@@ -89,6 +150,6 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--border));
+  background: rgb(var(--line));
   border-radius: 999px;
 }

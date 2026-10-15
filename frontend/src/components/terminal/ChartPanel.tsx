@@ -5,6 +5,7 @@ import { createChart, IChartApi, ISeriesApi, UTCTimestamp, ColorType } from "lig
 import { api, ApiRequestError } from "@/lib/api";
 import { useMarketSocket } from "@/lib/useMarketSocket";
 import { priceDecimals } from "@/lib/format";
+import { useTheme } from "@/lib/ThemeContext";
 
 const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W", "1M"] as const;
 type Timeframe = (typeof TIMEFRAMES)[number];
@@ -34,6 +35,7 @@ export function ChartPanel({ symbol }: { symbol: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const { theme } = useTheme();
   const [timeframe, setTimeframe] = useState<Timeframe>("1H");
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<{ provider: string; isIndicative: boolean } | null>(null);
@@ -47,25 +49,13 @@ export function ChartPanel({ symbol }: { symbol: string }) {
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#8a94ab",
-        fontFamily: "var(--font-inter)",
+        fontFamily: getComputedStyle(document.body).fontFamily,
       },
-      grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
-      },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true },
+      timeScale: { timeVisible: true },
       crosshair: { mode: 0 },
       autoSize: true,
     });
-    const series = chart.addCandlestickSeries({
-      upColor: "#17c787",
-      downColor: "#ff4d6a",
-      borderVisible: false,
-      wickUpColor: "#17c787",
-      wickDownColor: "#ff4d6a",
-    });
+    const series = chart.addCandlestickSeries({ borderVisible: false });
     chartRef.current = chart;
     seriesRef.current = series;
 
@@ -75,6 +65,29 @@ export function ChartPanel({ symbol }: { symbol: string }) {
       seriesRef.current = null;
     };
   }, []);
+
+  // The chart draws on a canvas, so theme colours are read from the CSS variables and reapplied
+  // whenever the theme changes.
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+    const css = getComputedStyle(document.documentElement);
+    // The chart library only parses comma-separated rgba(), not the CSS "R G B" form.
+    const color = (name: string, alpha = 1) => `rgba(${css.getPropertyValue(`--${name}`).trim().split(/\s+/).join(", ")}, ${alpha})`;
+    chart.applyOptions({
+      layout: { textColor: color("muted") },
+      grid: { vertLines: { color: color("line", 0.5) }, horzLines: { color: color("line", 0.5) } },
+      rightPriceScale: { borderColor: color("line") },
+      timeScale: { borderColor: color("line") },
+    });
+    series.applyOptions({
+      upColor: color("buy"),
+      downColor: color("sell"),
+      wickUpColor: color("buy"),
+      wickDownColor: color("sell"),
+    });
+  }, [theme]);
 
   // Load candle history whenever symbol/timeframe changes.
   useEffect(() => {
@@ -157,8 +170,9 @@ export function ChartPanel({ symbol }: { symbol: string }) {
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
-              className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                timeframe === tf ? "bg-vx-accent text-white" : "vx-muted hover:text-[rgb(var(--text))]"
+              aria-pressed={timeframe === tf}
+              className={`rounded-[6px] px-2 py-1 text-xs font-medium transition-colors ${
+                timeframe === tf ? "bg-accent-soft text-accent" : "text-muted hover:text-ink"
               }`}
             >
               {tf}
@@ -166,8 +180,9 @@ export function ChartPanel({ symbol }: { symbol: string }) {
           ))}
         </div>
         {source && (
-          <span className="text-[10px] vx-muted uppercase tracking-wide">
-            {source.provider} {source.isIndicative && "· indicative"}
+          <span className="text-2xs text-muted">
+            <span className="capitalize">{source.provider}</span>
+            {source.isIndicative && ", indicative"}
           </span>
         )}
       </div>

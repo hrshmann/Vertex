@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 
 const LEGAL_LINKS = [
@@ -18,9 +15,6 @@ const LEGAL_LINKS = [
 ];
 
 export function Footer() {
-  const pathname = usePathname();
-  if (pathname?.startsWith("/admin") || pathname?.startsWith("/terminal")) return null;
-
   return (
     <footer className="border-t border-[rgb(var(--border))] vx-surface mt-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">

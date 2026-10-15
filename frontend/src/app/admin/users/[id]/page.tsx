@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
+import { StatusBadge } from "@/components/ui/Badge";
 
 interface UserDetail {
   id: string;
@@ -17,7 +19,6 @@ interface UserDetail {
   loginHistory: { ip_address: string | null; created_at: string }[];
 }
 
-const KYC_STATUSES = ["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"];
 
 export default function AdminUserDetailPage() {
   const params = useParams<{ id: string }>();
@@ -34,12 +35,6 @@ export default function AdminUserDetailPage() {
   async function toggleSuspend() {
     if (!user) return;
     await api.post(`/api/admin/users/${user.id}/${user.is_suspended ? "activate" : "suspend"}`);
-    load();
-  }
-
-  async function setKyc(status: string) {
-    if (!user) return;
-    await api.post(`/api/admin/users/${user.id}/kyc`, { status });
     load();
   }
 
@@ -62,21 +57,14 @@ export default function AdminUserDetailPage() {
         </button>
       </div>
 
-      <div className="vx-surface rounded-xl p-5 mb-5">
-        <div className="text-xs vx-muted uppercase tracking-wide mb-2">KYC status</div>
-        <div className="flex gap-2 flex-wrap">
-          {KYC_STATUSES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setKyc(s)}
-              className={`px-3 py-1.5 rounded-md text-xs ${
-                user.kyc?.status === s ? "bg-vx-accent text-white" : "vx-surface-2 vx-muted"
-              }`}
-            >
-              {s.replace(/_/g, " ")}
-            </button>
-          ))}
+      <div className="vx-surface rounded-xl p-5 mb-5 flex items-center justify-between gap-4">
+        <div>
+          <div className="text-xs vx-muted mb-2">Verification</div>
+          {user.kyc ? <StatusBadge status={user.kyc.status} /> : <span className="text-sm vx-muted">No profile</span>}
         </div>
+        <Link href={`/admin/kyc/${user.id}`} className="text-sm font-medium text-accent hover:underline">
+          Review documents
+        </Link>
       </div>
 
       <div className="vx-surface rounded-xl p-5 mb-5">

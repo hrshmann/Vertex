@@ -56,8 +56,8 @@ export function BottomPanel() {
 
       <div className="flex-1 overflow-auto">
         {tab === "Positions" && (
-          <table className="w-full text-xs">
-            <thead className="vx-surface-2 vx-muted uppercase tracking-wide sticky top-0">
+          <table className="w-full font-condensed text-xs">
+            <thead className="vx-surface-2 vx-muted sticky top-0">
               <tr>
                 <Th>Symbol</Th>
                 <Th>Side</Th>
@@ -100,8 +100,8 @@ export function BottomPanel() {
         )}
 
         {tab === "Orders" && (
-          <table className="w-full text-xs">
-            <thead className="vx-surface-2 vx-muted uppercase tracking-wide sticky top-0">
+          <table className="w-full font-condensed text-xs">
+            <thead className="vx-surface-2 vx-muted sticky top-0">
               <tr>
                 <Th>Symbol</Th>
                 <Th>Side</Th>
@@ -138,8 +138,8 @@ export function BottomPanel() {
         )}
 
         {tab === "History" && (
-          <table className="w-full text-xs">
-            <thead className="vx-surface-2 vx-muted uppercase tracking-wide sticky top-0">
+          <table className="w-full font-condensed text-xs">
+            <thead className="vx-surface-2 vx-muted sticky top-0">
               <tr>
                 <Th>Symbol</Th>
                 <Th>Side</Th>

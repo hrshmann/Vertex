@@ -14,6 +14,8 @@ export function usePositions(mode: "DEMO" | "LIVE" = "DEMO") {
 
   useEffect(() => {
     load();
+    const interval = setInterval(load, 5000); // keeps current price and P/L moving between events
+    return () => clearInterval(interval);
   }, [load]);
 
   useMarketSocket((evt) => {

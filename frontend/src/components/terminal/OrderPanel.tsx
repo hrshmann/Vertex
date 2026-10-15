@@ -5,9 +5,10 @@ import clsx from "clsx";
 import { api, ApiRequestError } from "@/lib/api";
 import { Account, MarketRow, OrderSide, OrderType } from "@/lib/types";
 import { ConfirmOrderDialog, PendingOrder } from "./ConfirmOrderDialog";
-import { priceDecimals } from "@/lib/format";
+import { formatMoney, priceDecimals } from "@/lib/format";
 
 const ORDER_TYPES: OrderType[] = ["MARKET", "LIMIT", "STOP", "STOP_LIMIT"];
+const ORDER_TYPE_LABELS: Record<OrderType, string> = { MARKET: "Market", LIMIT: "Limit", STOP: "Stop", STOP_LIMIT: "Stop limit" };
 
 export function OrderPanel({
   instrument,
@@ -111,7 +112,7 @@ export function OrderPanel({
       <div className="flex items-center justify-between">
         <div className="font-medium vx-tabular">{instrument.symbol}</div>
         {!instrument.isExecutable && (
-          <span className="text-[10px] uppercase tracking-wide text-vx-warn">indicative only</span>
+          <span className="text-[10px] text-vx-warn">Indicative only</span>
         )}
       </div>
 
@@ -123,7 +124,7 @@ export function OrderPanel({
             side === "BUY" ? "bg-vx-buy text-white" : "vx-surface-2 vx-muted"
           )}
         >
-          BUY {q ? q.ask.toFixed(decimals) : "—"}
+          Buy {q ? q.ask.toFixed(decimals) : "—"}
         </button>
         <button
           onClick={() => setSide("SELL")}
@@ -132,12 +133,12 @@ export function OrderPanel({
             side === "SELL" ? "bg-vx-sell text-white" : "vx-surface-2 vx-muted"
           )}
         >
-          SELL {q ? q.bid.toFixed(decimals) : "—"}
+          Sell {q ? q.bid.toFixed(decimals) : "—"}
         </button>
       </div>
 
       <div>
-        <label className="block text-xs vx-muted mb-1.5">Order Type</label>
+        <label className="block text-xs vx-muted mb-1.5">Order type</label>
         <div className="grid grid-cols-4 gap-1">
           {ORDER_TYPES.map((t) => (
             <button
@@ -148,7 +149,7 @@ export function OrderPanel({
                 type === t ? "bg-vx-accent text-white" : "vx-surface-2 vx-muted"
               )}
             >
-              {t.replace("_", "-")}
+              {ORDER_TYPE_LABELS[t]}
             </button>
           ))}
         </div>
@@ -170,8 +171,8 @@ export function OrderPanel({
 
       <div className="vx-surface-2 rounded-lg p-3 space-y-1.5 text-xs">
         <SummaryRow label="Spread" value={spread != null ? spread.toFixed(decimals) : "—"} />
-        <SummaryRow label="Est. margin" value={account ? `$${estMargin.toFixed(2)}` : "—"} />
-        <SummaryRow label="Free margin" value={account ? `$${account.freeMargin.toFixed(2)}` : "—"} />
+        <SummaryRow label="Est. margin" value={account ? formatMoney(estMargin) : "—"} />
+        <SummaryRow label="Free margin" value={account ? formatMoney(account.freeMargin) : "—"} />
         <SummaryRow label="Order size" value={`${vol} × ${instrument.contractSize}`} />
       </div>
 
@@ -184,7 +185,7 @@ export function OrderPanel({
           side === "BUY" ? "bg-vx-buy hover:bg-vx-buy/90" : "bg-vx-sell hover:bg-vx-sell/90"
         )}
       >
-        {side} {instrument.symbol}
+        {side === "BUY" ? "Buy" : "Sell"} {instrument.symbol}
       </button>
 
       {pending && (

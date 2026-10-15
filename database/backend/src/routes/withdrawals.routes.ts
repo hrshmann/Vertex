@@ -42,6 +42,11 @@ export function withdrawalsRouter(demoEngine: DemoTradingEngine) {
       const body = createSchema.parse(req.body);
       const accountId = await resolveAccountId(demoEngine, req.user!.sub, body.mode);
 
+      const kyc = await query(`SELECT status FROM kyc_profiles WHERE user_id = ?`, [req.user!.sub]);
+      if (kyc.rows[0]?.status !== "APPROVED") {
+        throw new ApiError(403, "Verify your identity before making a withdrawal.");
+      }
+
       const balances = await query(
         `SELECT cash_balance, used_margin FROM balances WHERE trading_account_id = ?`,
         [accountId]

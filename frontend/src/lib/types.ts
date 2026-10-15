@@ -85,3 +85,57 @@ export interface User {
   email_verified_at: string | null;
   created_at: string;
 }
+
+export type KycStatus = "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "ADDITIONAL_INFORMATION_REQUIRED";
+export type KycDocumentType = "PASSPORT" | "NATIONAL_ID" | "DRIVERS_LICENSE" | "PROOF_OF_ADDRESS" | "SELFIE";
+
+export interface KycDocument {
+  id: string;
+  document_type: KycDocumentType;
+  side: "FRONT" | "BACK" | null;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number | null;
+  uploaded_at: string;
+}
+
+export interface KycProfile {
+  id: string;
+  status: KycStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  documents: KycDocument[];
+  requirements: { identity: boolean; proofOfAddress: boolean; selfie: boolean; complete: boolean };
+  canEdit: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: string;
+  amount: string;
+  reference_id: string | null;
+  description: string | null;
+  created_at: string;
+}
+
+export interface FundsRequest {
+  id: string;
+  amount: string;
+  currency: string;
+  method: string;
+  status: string;
+  destination?: string;
+  created_at: string;
+  confirmed_at?: string | null;
+  processed_at?: string | null;
+}

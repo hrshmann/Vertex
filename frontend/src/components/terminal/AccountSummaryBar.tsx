@@ -4,75 +4,71 @@ import Link from "next/link";
 import clsx from "clsx";
 import { Logo } from "@/components/Logo";
 import { Account } from "@/lib/types";
-import { useAuth } from "@/lib/AuthContext";
+import { formatMoney, formatSignedMoney } from "@/lib/format";
+import { NotificationsMenu, ThemeToggle, UserMenu } from "@/components/portal/HeaderMenus";
 
-const RISK_LABEL: Record<Account["riskState"], string> = {
-  NORMAL: "Normal",
-  MARGIN_WARNING: "Margin Warning",
-  MARGIN_CALL: "Margin Call",
-  STOP_OUT: "Stop Out",
+const RISK: Record<Account["riskState"], { label: string; className: string }> = {
+  NORMAL: { label: "Healthy", className: "text-buy" },
+  MARGIN_WARNING: { label: "Margin warning", className: "text-warn" },
+  MARGIN_CALL: { label: "Margin call", className: "text-sell" },
+  STOP_OUT: { label: "Stop out", className: "text-sell" },
 };
-const RISK_COLOR: Record<Account["riskState"], string> = {
-  NORMAL: "text-vx-buy",
-  MARGIN_WARNING: "text-vx-warn",
-  MARGIN_CALL: "text-vx-sell",
-  STOP_OUT: "text-vx-sell",
-};
+
+const LINKS = [
+  { href: "/dashboard", label: "Overview" },
+  { href: "/funds", label: "Funds" },
+  { href: "/kyc", label: "Verification" },
+  { href: "/history", label: "History" },
+];
 
 export function AccountSummaryBar({ account }: { account: Account | null }) {
-  const { user, logout } = useAuth();
-
   return (
-    <div className="h-14 flex items-center justify-between px-4 border-b border-[rgb(var(--border))] vx-surface shrink-0">
-      <div className="flex items-center gap-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <Link href="/dashboard" className="flex items-center gap-2 font-semibold" aria-label="Vertex Trading overview">
           <Logo className="h-6 w-6" />
-          <span className="hidden sm:inline">Vertex</span>
         </Link>
-        <span className="px-2 py-1 rounded-md bg-vx-warn/15 text-vx-warn text-[11px] font-semibold uppercase tracking-wide">
-          Demo Account
-        </span>
+        <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-2xs font-medium text-warn">Demo</span>
+        <nav aria-label="Portal" className="hidden items-center gap-1 xl:flex">
+          {LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="rounded-control px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-ink">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
-      <div className="hidden md:flex items-center gap-6 text-xs vx-tabular">
-        <Metric label="Balance" value={account ? `$${account.balance.toFixed(2)}` : "—"} />
-        <Metric label="Equity" value={account ? `$${account.equity.toFixed(2)}` : "—"} />
-        <Metric label="Used Margin" value={account ? `$${account.usedMargin.toFixed(2)}` : "—"} />
-        <Metric label="Free Margin" value={account ? `$${account.freeMargin.toFixed(2)}` : "—"} />
+      <dl className="hidden min-w-0 items-center gap-5 font-condensed md:flex">
+        <Metric label="Balance" value={account ? formatMoney(account.balance) : "—"} />
+        <Metric label="Equity" value={account ? formatMoney(account.equity) : "—"} />
+        <Metric label="Free margin" value={account ? formatMoney(account.freeMargin) : "—"} />
         <Metric
-          label="Unrealized P/L"
-          value={account ? `${account.unrealizedPnl >= 0 ? "+" : ""}${account.unrealizedPnl.toFixed(2)}` : "—"}
-          valueClass={account ? (account.unrealizedPnl >= 0 ? "text-vx-buy" : "text-vx-sell") : undefined}
+          label="Open P/L"
+          value={account ? formatSignedMoney(account.unrealizedPnl) : "—"}
+          className={account ? (account.unrealizedPnl > 0 ? "text-buy" : account.unrealizedPnl < 0 ? "text-sell" : "") : undefined}
         />
         <Metric
-          label="Margin Level"
+          label="Margin level"
           value={account?.marginLevel != null ? `${account.marginLevel.toFixed(0)}%` : "—"}
+          className={account ? RISK[account.riskState].className : undefined}
+          title={account ? RISK[account.riskState].label : undefined}
         />
-        <span className={clsx("font-semibold", account ? RISK_COLOR[account.riskState] : "vx-muted")}>
-          {account ? RISK_LABEL[account.riskState] : ""}
-        </span>
-      </div>
+      </dl>
 
-      <div className="flex items-center gap-3 text-sm">
-        <Link href="/account" className="vx-muted hover:text-[rgb(var(--text))] hidden sm:inline">
-          {user?.first_name}
-        </Link>
-        <Link href="/" className="vx-muted hover:text-[rgb(var(--text))] hidden sm:inline">
-          Site
-        </Link>
-        <button onClick={() => logout()} className="vx-muted hover:text-[rgb(var(--text))]">
-          Log out
-        </button>
+      <div className="flex shrink-0 items-center gap-1">
+        <ThemeToggle />
+        <NotificationsMenu />
+        <UserMenu />
       </div>
-    </div>
+    </header>
   );
 }
 
-function Metric({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+function Metric({ label, value, className, title }: { label: string; value: string; className?: string; title?: string }) {
   return (
-    <div className="text-center">
-      <div className="vx-muted">{label}</div>
-      <div className={clsx("font-medium", valueClass)}>{value}</div>
+    <div className="text-right" title={title}>
+      <dt className="text-2xs text-muted">{label}</dt>
+      <dd className={clsx("text-sm font-semibold vx-tabular", className)}>{value}</dd>
     </div>
   );
 }

@@ -10,7 +10,7 @@ export function Watchlist({ selected, onSelect }: { selected: string; onSelect: 
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-3 py-2.5 border-b border-[rgb(var(--border))] text-xs font-medium vx-muted uppercase tracking-wide">
+      <div className="px-3 py-2.5 border-b border-[rgb(var(--border))] text-xs font-medium vx-muted">
         Watchlist
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -29,7 +29,7 @@ export function Watchlist({ selected, onSelect }: { selected: string; onSelect: 
             >
               <div>
                 <div className="text-sm font-medium vx-tabular">{r.symbol}</div>
-                <div className="text-[10px] vx-muted">{r.isExecutable ? r.provider : "indicative"}</div>
+                <div className="text-[10px] vx-muted">{q?.source ? `${q.source.charAt(0).toUpperCase()}${q.source.slice(1)}${q.isIndicative ? ", indicative" : ""}` : r.isExecutable ? "" : "Indicative"}</div>
               </div>
               <div className="text-right">
                 <PriceFlash value={q?.last} decimals={decimals} className="text-sm font-medium" />

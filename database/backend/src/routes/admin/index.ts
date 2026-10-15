@@ -4,6 +4,7 @@ import { adminDashboardRouter } from "./dashboard.routes";
 import { adminUsersRouter } from "./users.routes";
 import { adminInstrumentsRouter } from "./instruments.routes";
 import { adminWithdrawalsRouter } from "./withdrawals.routes";
+import { adminKycRouter } from "./kyc.routes";
 
 export function adminRouter() {
   const router = Router();
@@ -12,5 +13,6 @@ export function adminRouter() {
   router.use("/users", adminUsersRouter());
   router.use("/instruments", adminInstrumentsRouter());
   router.use("/withdrawals", adminWithdrawalsRouter());
+  router.use("/kyc", adminKycRouter());
   return router;
 }

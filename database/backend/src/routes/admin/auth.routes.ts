@@ -11,12 +11,12 @@ import { requireAdmin } from "../../middleware/rbac";
 
 export function adminAuthRouter() {
   const router = Router();
-  router.use(authRateLimiter);
 
   const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
   router.post(
     "/login",
+    authRateLimiter,
     asyncHandler(async (req, res) => {
       const body = loginSchema.parse(req.body);
       const result = await query(

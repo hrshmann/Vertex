@@ -2,57 +2,99 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import clsx from "clsx";
+import { ArrowDownUp, LayoutGrid, LineChart, LogOut, ShieldCheck, Users } from "lucide-react";
 import { AdminAuthProvider, useAdminAuth } from "@/lib/AdminAuthContext";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/portal/HeaderMenus";
 
 const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/withdrawals", label: "Withdrawals" },
-  { href: "/admin/instruments", label: "Instruments" },
+  { href: "/admin", label: "Dashboard", icon: LayoutGrid, exact: true },
+  { href: "/admin/kyc", label: "Verifications", icon: ShieldCheck },
+  { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowDownUp },
+  { href: "/admin/users", label: "Clients", icon: Users },
+  { href: "/admin/instruments", label: "Instruments", icon: LineChart },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super admin",
+  COMPLIANCE: "Compliance",
+  TRADING_ADMIN: "Trading admin",
+  SUPPORT: "Support",
+  FINANCE: "Finance",
+};
 
 function AdminChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { admin, loading, logout } = useAdminAuth();
+  const isLogin = pathname === "/admin/login";
 
-  if (pathname === "/admin/login") return <>{children}</>;
+  useEffect(() => {
+    if (!isLogin && !loading && !admin) window.location.href = "/admin/login";
+  }, [isLogin, loading, admin]);
 
-  if (loading) {
-    return <div className="h-screen flex items-center justify-center text-sm vx-muted">Loading admin…</div>;
-  }
-
-  if (!admin) {
-    if (typeof window !== "undefined") window.location.href = "/admin/login";
-    return null;
+  if (isLogin) return <>{children}</>;
+  if (loading || !admin) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Logo className="h-8 w-8 animate-pulse" />
+      </div>
+    );
   }
 
   return (
-    <div className="h-screen flex bg-[rgb(var(--bg))]">
-      <aside className="w-56 border-r border-[rgb(var(--border))] vx-surface flex flex-col shrink-0">
-        <div className="h-14 flex items-center px-4 font-semibold border-b border-[rgb(var(--border))]">
-          Vertex <span className="text-vx-accent ml-1">Admin</span>
+    <div className="flex min-h-screen">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface md:flex">
+        <div className="flex h-14 items-center gap-2 border-b border-line px-5 font-semibold">
+          <Logo className="h-6 w-6" />
+          Vertex admin
         </div>
-        <nav className="flex-1 p-2 space-y-1">
-          {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={clsx(
-                "block rounded-lg px-3 py-2 text-sm transition-colors",
-                pathname === n.href ? "bg-vx-accent/15 text-vx-accent" : "vx-muted hover:text-[rgb(var(--text))]"
-              )}
-            >
-              {n.label}
-            </Link>
-          ))}
+        <nav aria-label="Admin" className="flex-1 space-y-0.5 p-3">
+          {NAV.map(({ href, label, icon: Icon, exact }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={clsx(
+                  "flex items-center gap-3 rounded-control px-3 py-2 text-sm transition-colors",
+                  active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-raised hover:text-ink"
+                )}
+              >
+                <Icon className="h-[18px] w-[18px]" aria-hidden />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
-        <div className="p-3 border-t border-[rgb(var(--border))] text-xs">
-          <div className="vx-muted mb-2">{admin.email} · {admin.role}</div>
-          <button onClick={() => logout()} className="text-vx-sell hover:underline">Log out</button>
+        <div className="border-t border-line p-4">
+          <p className="truncate text-xs font-medium">{admin.email}</p>
+          <p className="text-2xs text-muted">{ROLE_LABELS[admin.role] ?? admin.role}</p>
+          <div className="mt-3 flex items-center justify-between">
+            <button onClick={() => void logout()} className="flex items-center gap-2 text-xs text-muted hover:text-sell">
+              <LogOut className="h-3.5 w-3.5" />
+              Log out
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="min-w-0 flex-1">
+        {/* Phones: a compact top navigation instead of the sidebar. */}
+        <nav aria-label="Admin" className="flex gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 md:hidden">
+          {NAV.map(({ href, label, exact }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href);
+            return (
+              <Link key={href} href={href} className={clsx("shrink-0 rounded-control px-3 py-1.5 text-xs", active ? "bg-accent-soft font-medium text-accent" : "text-muted")}>
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <main>{children}</main>
+      </div>
     </div>
   );
 }

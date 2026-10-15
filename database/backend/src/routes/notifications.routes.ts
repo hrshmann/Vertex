@@ -19,6 +19,14 @@ export function notificationsRouter() {
   );
 
   router.post(
+    "/read-all",
+    asyncHandler(async (req, res) => {
+      await query(`UPDATE notifications SET read_at = now() WHERE user_id = ? AND read_at IS NULL`, [req.user!.sub]);
+      res.json({ ok: true });
+    })
+  );
+
+  router.post(
     "/:id/read",
     asyncHandler(async (req, res) => {
       await query(

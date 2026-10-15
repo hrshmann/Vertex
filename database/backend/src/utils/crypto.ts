@@ -24,6 +24,21 @@ export function encryptSecret(plaintext: string): string {
   return `${iv.toString("base64")}.${authTag.toString("base64")}.${ciphertext.toString("base64")}`;
 }
 
+/** Binary AES-256-GCM for files (KYC documents). Output: iv (12) | authTag (16) | ciphertext. */
+export function encryptBuffer(plaintext: Buffer): Buffer {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", getKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+}
+
+export function decryptBuffer(payload: Buffer): Buffer {
+  if (payload.length < 28) throw new Error("Malformed encrypted payload");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", getKey(), payload.subarray(0, 12));
+  decipher.setAuthTag(payload.subarray(12, 28));
+  return Buffer.concat([decipher.update(payload.subarray(28)), decipher.final()]);
+}
+
 export function decryptSecret(payload: string): string {
   const [ivB64, tagB64, dataB64] = payload.split(".");
   if (!ivB64 || !tagB64 || !dataB64) throw new Error("Malformed encrypted payload");

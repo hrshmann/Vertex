@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { WS_BASE } from "./config";
+import { marketSocketUrl } from "./config";
 
 export interface WsEvent<T = unknown> {
   event: string;
@@ -26,7 +26,7 @@ function ensureSocket() {
   if (sharedSocket && (sharedSocket.readyState === WebSocket.OPEN || sharedSocket.readyState === WebSocket.CONNECTING)) {
     return;
   }
-  const socket = new WebSocket(WS_BASE);
+  const socket = new WebSocket(marketSocketUrl());
   sharedSocket = socket;
 
   socket.onopen = () => {
@@ -59,7 +59,7 @@ export function useMarketSocket(onEvent: Listener) {
   handlerRef.current = onEvent;
 
   useEffect(() => {
-    if (!WS_BASE) return;
+    if (!marketSocketUrl()) return;
     const wrapped: Listener = (evt) => handlerRef.current(evt);
     listeners.add(wrapped);
     ensureSocket();

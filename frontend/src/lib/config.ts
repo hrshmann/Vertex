@@ -5,10 +5,8 @@ const isLoopbackHost = (hostname: string) =>
   hostname === "127.0.0.1" ||
   hostname === "[::1]";
 
-if (process.env.NODE_ENV === "production" && !configuredApiBase) {
-  throw new Error("NEXT_PUBLIC_API_URL must be configured for production builds");
-}
-
+// Without NEXT_PUBLIC_API_URL, production builds call the API on the page's own address: the
+// single-app deployment (repository-root app.js) serves the site and /api together.
 if (configuredApiBase) {
   let apiUrl: URL;
   try {
@@ -30,6 +28,7 @@ if (configuredApiBase) {
   }
 }
 
+/** API origin; "" means the page's own address (same-origin requests to /api/...). */
 export const API_BASE =
   configuredApiBase ?? (process.env.NODE_ENV === "development" ? "http://localhost:4000" : "");
 
@@ -54,7 +53,7 @@ if (configuredWsBase) {
   }
 }
 
-export const WS_BASE =
+const WS_BASE =
   configuredWsBase ??
   (configuredApiBase
     ? process.env.NODE_ENV === "development"
@@ -63,6 +62,18 @@ export const WS_BASE =
     : process.env.NODE_ENV === "development"
       ? "ws://localhost:4000/ws"
       : "");
+
+/**
+ * Market WebSocket URL, or "" when streaming is disabled (prices then refresh by polling).
+ * Same-origin production builds connect to /ws on the page's own address.
+ */
+export function marketSocketUrl(): string {
+  if (WS_BASE) return WS_BASE;
+  if (!configuredApiBase && process.env.NODE_ENV === "production" && typeof window !== "undefined") {
+    return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+  }
+  return "";
+}
 
 export const MARKET_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_MARKET_POLL_INTERVAL_MS ?? 10_000);
 if (!Number.isInteger(MARKET_POLL_INTERVAL_MS) || MARKET_POLL_INTERVAL_MS < 1_000) {

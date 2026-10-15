@@ -1,11 +1,10 @@
-// Writes the two environment files to import into Hostinger ("Import from .env file"):
-//   .env.hostinger-api  -> API app      (runtime settings, secrets, database login)
-//   .env.hostinger-web  -> website app  (public API URL, embedded at build time)
-// Both match the repository's `.env*` gitignore rule, so they are never committed.
+// Writes .env.hostinger, the environment file to import into the Hostinger app
+// ("Import from .env file"). It matches the repository's `.env*` gitignore rule, so it is never
+// committed.
 //
 // Usage: npm run hostinger:env -- --domain example.com [--rotate]
-//   --domain  your registrable domain: site on https://example.com and https://www.example.com,
-//             API on https://api.example.com
+//   --domain  your registrable domain: the site and API are served on https://example.com
+//             (and https://www.example.com)
 //   --rotate  generate new secrets. Without it, secrets from an existing file are kept, because
 //             new ones log every user out and make stored encrypted values unreadable.
 //
@@ -17,8 +16,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const apiFile = path.join(root, ".env.hostinger-api");
-const webFile = path.join(root, ".env.hostinger-web");
+const outFile = path.join(root, ".env.hostinger");
+// Files from the earlier two-app layout; their secrets are carried over, then they are removed.
+const legacyFiles = [path.join(root, ".env.hostinger-api"), path.join(root, ".env.hostinger-web")];
 const backendEnvFile = path.join(root, "database", "backend", ".env");
 
 const args = process.argv.slice(2);
@@ -26,7 +26,7 @@ const domainIndex = args.indexOf("--domain");
 const domain = domainIndex >= 0 ? args[domainIndex + 1]?.trim().toLowerCase() : undefined;
 const rotate = args.includes("--rotate");
 
-if (!domain || !/^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain) || domain.startsWith("www.") || domain.startsWith("api.")) {
+if (!domain || !/^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain) || domain.startsWith("www.")) {
   fail("Pass your domain without https:// or www, e.g.  npm run hostinger:env -- --domain example.com");
 }
 
@@ -61,15 +61,14 @@ for (const key of ["DB_NAME", "DB_USER", "DB_PASSWORD"]) {
   if (!local[key]) fail(`${key} is missing from database/backend/.env — add your Hostinger database login there first.`);
 }
 
-const previous = rotate ? {} : parseEnv(apiFile);
+const previous = rotate ? {} : { ...parseEnv(legacyFiles[0]), ...parseEnv(outFile) };
 const secret = (key, make) => previous[key] || make();
 const randomSecret = () => crypto.randomBytes(48).toString("base64url");
 
 const site = `https://${domain}`;
 const wwwSite = `https://www.${domain}`;
-const api = `https://api.${domain}`;
 
-const apiEnv = [
+const entries = [
   ["NODE_ENV", "production"],
   ["DB_HOST", "localhost"],
   ["DB_PORT", local.DB_PORT || "3306"],
@@ -81,26 +80,21 @@ const apiEnv = [
   ["JWT_REFRESH_SECRET", secret("JWT_REFRESH_SECRET", randomSecret)],
   ["JWT_ADMIN_SECRET", secret("JWT_ADMIN_SECRET", randomSecret)],
   ["ENCRYPTION_KEY", secret("ENCRYPTION_KEY", () => crypto.randomBytes(32).toString("hex"))],
+  // Origins allowed for the /ws WebSocket handshake and cross-origin API calls.
   ["CORS_ORIGIN", `${site},${wwwSite}`],
   ["TRUST_PROXY_HOPS", previous.TRUST_PROXY_HOPS || "1"],
 ];
-const webEnv = [
-  ["NEXT_PUBLIC_API_URL", api],
-  ["NEXT_PUBLIC_WS_URL", `wss://api.${domain}/ws`],
-];
 
-fs.writeFileSync(apiFile, format(apiEnv), { mode: 0o600 });
-fs.writeFileSync(webFile, format(webEnv), { mode: 0o600 });
+fs.writeFileSync(outFile, format(entries), { mode: 0o600 });
+for (const file of legacyFiles) fs.rmSync(file, { force: true });
 
 console.log(`
-Wrote:
-  ${apiFile}   -> import into the API app (api.${domain})
-  ${webFile}   -> import into the website app (${domain})
+Wrote ${outFile}
+  -> import it into the Hostinger Node.js app for ${domain}
 
-Website: ${site} (and ${wwwSite})
-API:     ${api}
-Secrets: ${rotate || !Object.keys(previous).length ? "newly generated" : "kept from the existing file"}
+Site and API: ${site} (and ${wwwSite})
+Secrets:      ${rotate || !previous.JWT_ACCESS_SECRET ? "newly generated" : "kept from the existing file"}
 
-These files contain your database password and signing secrets. Keep them private and back
-them up somewhere safe; never commit or share them.
+This file contains your database password and signing secrets. Keep it private and back it up
+somewhere safe; never commit or share it.
 `);

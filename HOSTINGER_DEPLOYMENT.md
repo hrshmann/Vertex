@@ -70,8 +70,10 @@ Running the command again with the same email resets that admin's password.
 1. In hPanel, go to **Websites → Add Website → Node.js Web App → Import Git repository**.
 2. Click **Connect with GitHub**, install the Hostinger GitHub App, and allow it access to
    `hrshmann/Vertex`. Then pick that repository.
-3. Choose the domain **`api.yourdomain.com`**. If the subdomain isn't listed, create it first under
-   **Domains → Subdomains**.
+3. When asked for the domain, **type `api.yourdomain.com`**. This creates the subdomain as its own
+   website. **Don't** create it first under **Domains → Subdomains**: that makes an empty PHP site
+   ("Default page") that blocks the Node.js app. If that already happened, delete that website
+   (or the subdomain) and start this step again.
 4. Fill in the build settings:
    - **Framework preset:** Other (or Express)
    - **Branch:** `main`

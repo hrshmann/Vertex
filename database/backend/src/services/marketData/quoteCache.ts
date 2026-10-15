@@ -4,6 +4,11 @@ import { getInstrumentBySymbol } from "./instrumentCache";
 
 const quotes = new Map<string, Quote>(); // keyed by symbol
 
+// Live quotes are served from memory; market_quotes is only a persisted snapshot. Writing it on
+// every tick (~1/s per crypto symbol) wastes the shared-hosting database's query budget.
+const PERSIST_INTERVAL_MS = 30_000;
+const lastPersistedAt = new Map<string, number>();
+
 export type QuoteListener = (quote: Quote) => void;
 const listeners = new Set<QuoteListener>();
 
@@ -18,6 +23,10 @@ export async function upsertQuote(q: Quote): Promise<void> {
 
   const instrument = getInstrumentBySymbol(q.symbol);
   if (!instrument) return;
+
+  const now = Date.now();
+  if (now - (lastPersistedAt.get(q.symbol) ?? 0) < PERSIST_INTERVAL_MS) return;
+  lastPersistedAt.set(q.symbol, now);
 
   await pool.query(
     `INSERT INTO market_quotes (instrument_id, bid, ask, last, high_24h, low_24h, volume_24h, change_24h_pct, is_indicative, source_ts, received_at)

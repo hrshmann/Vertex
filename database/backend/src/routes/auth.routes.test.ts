@@ -53,7 +53,7 @@ describe("auth routes with mocked persistence", () => {
     mocks.sessions.clear();
     mocks.tokenCounter = 0;
     mocks.query.mockImplementation(async (sql: string, params: unknown[] = []) => {
-      if (sql.includes("SELECT id FROM user_sessions")) {
+      if (sql.includes("SELECT s.id FROM user_sessions")) {
         const [session] = [...mocks.sessions.entries()].find(([, hash]) => hash === params[1]) ?? [];
         return { rows: session ? [{ id: session }] : [], rowCount: session ? 1 : 0, insertId: 0 };
       }

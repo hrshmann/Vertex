@@ -52,7 +52,10 @@ export class BinanceMarketDataClient {
         const msg = JSON.parse(raw.toString());
         const payload = msg.data;
         if (!payload || payload.e !== "24hrTicker") return;
-        this.handleTicker(payload);
+        // handleTicker is async; an unhandled rejection (e.g. a DB error) would crash the process.
+        this.handleTicker(payload).catch((err) => {
+          console.error("[binance] failed to handle ticker", err);
+        });
       } catch (err) {
         console.error("[binance] failed to parse message", err);
       }

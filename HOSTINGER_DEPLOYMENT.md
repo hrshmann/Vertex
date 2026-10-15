@@ -110,8 +110,12 @@ Also configure:
 
 - `TRUST_PROXY_HOPS` — the exact proxy hop count confirmed by Hostinger.
 - `DB_SSL=true` if Hostinger requires TLS for connections to this MariaDB service.
-- `DB_CONNECTION_LIMIT` if the plan has a documented per-app/database connection cap; otherwise
-  the application default is 10.
+- `DB_CONNECTION_LIMIT=5`. The Hostinger database user is capped at 500 new connections per
+  hour (`MAX_CONNECTIONS_PER_HOUR 500`); exceeding it locks the API out of the database until the
+  hour resets. A small pool keeps reconnect churn well under that cap. The application default
+  is 10.
+- `DB_IDLE_TIMEOUT_MS` (default `15000`). Must stay below the server's `wait_timeout`, which is
+  20 seconds on this database, so the pool closes idle connections before the server drops them.
 - Optional feed configuration: `BINANCE_WS_BASE`, `BINANCE_REST_BASE`,
   `FOREX_INDICATIVE_BASE`, and `FOREX_POLL_INTERVAL_MS`.
 - Optional token lifetime configuration: `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL_DAYS`, and
@@ -140,6 +144,17 @@ The MariaDB hostname must be reachable from the API app and its connection must 
 Hostinger. Confirm any database remote-access allowlist and TLS requirement in hPanel. Do not
 change database grants or schema as part of application deployment.
 
+Database access is granted per client host. The database user currently has remote access only
+from one developer IP (added under hPanel → Databases → Remote MySQL). The deployed API connects
+from Hostinger's own infrastructure, not that IP, so it needs its own access:
+
+- If the Node.js app runs on the same hosting account as the database, try `DB_HOST=localhost`
+  first.
+- Otherwise add the API app's outbound IP in Remote MySQL and keep the `*.hstgr.io` hostname.
+
+If `/health` responds but the API logs `ER_ACCESS_DENIED_ERROR` or `ETIMEDOUT` at startup, this
+access rule is the cause.
+
 ## Health check and read-only verification
 
 Configure the platform health check to:
@@ -167,10 +182,20 @@ Only run a future migration as a separately reviewed, explicitly authorized main
 after taking a backup and verifying the target database identity. Never add migration execution
 to a Hostinger start command.
 
+Current database state (checked 2026-10-15): MariaDB 11.8, `utf8mb4_unicode_ci`, with
+`001_init.sql`, `002_seed_instruments.sql` and `003_seed_compliance.sql` recorded in
+`schema_migrations`. The schema and seed data are in place. No admin account exists yet.
+
 User registration is available through the application. Admin provisioning is a separate,
 privileged database write; if needed, run the existing `npm run seed:admin` only as a deliberate
 one-time operation with `ADMIN_EMAIL` and `ADMIN_PASSWORD` set privately in that process. Do not
-put these values in a public or committed file.
+put these values in a public or committed file. On a machine with remote database access, run it
+from `database/backend/`. In a production install without `tsx`, use the compiled equivalents
+after building: `npm run seed:admin:prod` and `npm run migrate:prod`.
+
+The backend compiles TypeScript in `postinstall`, so the TypeScript toolchain is a regular
+dependency. A plain `npm ci` therefore builds the API even when `NODE_ENV=production` causes npm
+to skip devDependencies.
 
 ## Product limitations to resolve before public launch
 

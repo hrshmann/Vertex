@@ -1,4 +1,6 @@
-import { pool, withTransaction } from "../../db/pool";
+import crypto from "node:crypto";
+import { DbConnection, pool, withTransaction } from "../../db/pool";
+import { isDuplicateKeyError } from "../../utils/dbErrors";
 import { getInstrumentBySymbol, getInstrumentById } from "../marketData/instrumentCache";
 import { getQuote } from "../marketData/quoteCache";
 import { calcRequiredMargin, calcUnrealizedPnl, computeMarginSnapshot } from "./riskEngine";
@@ -19,32 +21,53 @@ const DEMO_STARTING_BALANCE = 10_000;
 export class DemoTradingEngine implements TradingProvider {
   constructor(private hub: WsHub) {}
 
-  async ensureDemoAccount(userId: string): Promise<string> {
-    const existing = await pool.query(
+  /**
+   * Returns the user's demo account id, creating it if needed. Pass `client` to create it inside
+   * the caller's transaction (e.g. registration); otherwise it runs in its own transaction.
+   */
+  async ensureDemoAccount(userId: string, client?: Pick<DbConnection, "query">): Promise<string> {
+    const existingId = await this.findDemoAccountId(client ?? pool, userId);
+    if (existingId) return existingId;
+    if (client) return this.createDemoAccount(client, userId);
+
+    try {
+      return await withTransaction((tx) => this.createDemoAccount(tx, userId));
+    } catch (err) {
+      // A concurrent request created the account first (UNIQUE user_id, mode).
+      if (isDuplicateKeyError(err)) {
+        const createdId = await this.findDemoAccountId(pool, userId);
+        if (createdId) return createdId;
+      }
+      throw err;
+    }
+  }
+
+  private async findDemoAccountId(db: Pick<DbConnection, "query">, userId: string) {
+    const existing = await db.query<{ id: string }>(
       `SELECT id FROM trading_accounts WHERE user_id = ? AND mode = 'DEMO'`,
       [userId]
     );
-    if (existing.rows[0]) return existing.rows[0].id;
+    return existing.rows[0]?.id;
+  }
 
-    return withTransaction(async (client) => {
-      const accountId = (await client.query<{ id: string }>(`SELECT UUID() AS id`)).rows[0].id;
-      const acc = await client.query(
-        `INSERT INTO trading_accounts (id, user_id, mode, tier, currency, leverage)
-         VALUES (?, ?, 'DEMO', 'STANDARD', 'USD', 100)`,
-        [accountId, userId]
-      );
-      if (acc.rowCount !== 1) throw new Error("Failed to create demo trading account");
-      await client.query(
-        `INSERT INTO balances (trading_account_id, cash_balance, used_margin) VALUES (?, ?, 0)`,
-        [accountId, DEMO_STARTING_BALANCE]
-      );
-      await client.query(
-        `INSERT INTO transactions (trading_account_id, type, amount, description)
-         VALUES (?, 'ADJUSTMENT', ?, 'Demo account initial balance')`,
-        [accountId, DEMO_STARTING_BALANCE]
-      );
-      return accountId;
-    });
+  private async createDemoAccount(client: Pick<DbConnection, "query">, userId: string) {
+    const accountId = crypto.randomUUID();
+    const acc = await client.query(
+      `INSERT INTO trading_accounts (id, user_id, mode, tier, currency, leverage)
+       VALUES (?, ?, 'DEMO', 'STANDARD', 'USD', 100)`,
+      [accountId, userId]
+    );
+    if (acc.rowCount !== 1) throw new Error("Failed to create demo trading account");
+    await client.query(
+      `INSERT INTO balances (trading_account_id, cash_balance, used_margin) VALUES (?, ?, 0)`,
+      [accountId, DEMO_STARTING_BALANCE]
+    );
+    await client.query(
+      `INSERT INTO transactions (trading_account_id, type, amount, description)
+       VALUES (?, 'ADJUSTMENT', ?, 'Demo account initial balance')`,
+      [accountId, DEMO_STARTING_BALANCE]
+    );
+    return accountId;
   }
 
   async getAccount(tradingAccountId: string): Promise<Account> {

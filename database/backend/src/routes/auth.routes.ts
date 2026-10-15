@@ -11,6 +11,7 @@ import { DemoTradingEngine } from "../services/trading/demoEngine";
 import { query } from "./mariaDbQuery";
 import { DbConnection, withTransaction } from "../db/pool";
 import { env } from "../config/env";
+import { isDuplicateKeyError } from "../utils/dbErrors";
 import crypto from "node:crypto";
 
 export function authRouter(demoEngine: DemoTradingEngine) {
@@ -48,15 +49,23 @@ export function authRouter(demoEngine: DemoTradingEngine) {
 
       const passwordHash = await hashPassword(body.password);
       const userId = crypto.randomUUID();
-      await query(
-        `INSERT INTO users (id, first_name, last_name, email, mobile, country, password_hash)
-         VALUES (?,?,?,?,?,?,?)`,
-        [userId, body.firstName, body.lastName, body.email, body.mobile ?? null, body.country ?? null, passwordHash]
-      );
+      // User, KYC profile and demo account are created together or not at all.
+      try {
+        await withTransaction(async (client) => {
+          await client.query(
+            `INSERT INTO users (id, first_name, last_name, email, mobile, country, password_hash)
+             VALUES (?,?,?,?,?,?,?)`,
+            [userId, body.firstName, body.lastName, body.email, body.mobile ?? null, body.country ?? null, passwordHash]
+          );
+          await client.query(`INSERT INTO kyc_profiles (user_id) VALUES (?)`, [userId]);
+          await demoEngine.ensureDemoAccount(userId, client);
+        });
+      } catch (err) {
+        // A concurrent registration with the same email won the race.
+        if (isDuplicateKeyError(err)) throw new ApiError(409, "An account with this email already exists");
+        throw err;
+      }
       const user = { id: userId, email: body.email };
-
-      await query(`INSERT INTO kyc_profiles (user_id) VALUES (?)`, [user.id]);
-      await demoEngine.ensureDemoAccount(user.id);
 
       await logAudit({ actorType: "user", actorId: user.id, action: "REGISTERED", ipAddress: req.ip });
 
@@ -130,10 +139,12 @@ export function authRouter(demoEngine: DemoTradingEngine) {
       const currentHash = hashRefreshToken(token);
       const nextHash = hashRefreshToken(refreshToken);
       const rotated = await withTransaction(async (client) => {
+        // Suspended or deactivated users cannot renew their session.
         const session = await client.query<{ id: string }>(
-          `SELECT id FROM user_sessions
-           WHERE user_id = ? AND refresh_token_hash = ? AND revoked_at IS NULL
-             AND expires_at > UTC_TIMESTAMP(6)
+          `SELECT s.id FROM user_sessions s JOIN users u ON u.id = s.user_id
+           WHERE s.user_id = ? AND s.refresh_token_hash = ? AND s.revoked_at IS NULL
+             AND s.expires_at > UTC_TIMESTAMP(6)
+             AND u.is_active = TRUE AND u.is_suspended = FALSE
            FOR UPDATE`,
           [payload.sub, currentHash]
         );

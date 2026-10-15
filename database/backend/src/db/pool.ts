@@ -42,6 +42,12 @@ const mysqlPool = mysql.createPool({
   database: env.databaseName,
   ssl: env.databaseSsl ? { rejectUnauthorized: true } : undefined,
   connectionLimit: env.databaseConnectionLimit,
+  // Close idle connections before the server's wait_timeout does (20s on Hostinger shared
+  // MariaDB), so the pool never hands out a connection the server already dropped. mysql2 only
+  // runs its idle cleanup when maxIdle < connectionLimit.
+  idleTimeout: env.databaseIdleTimeoutMs,
+  maxIdle: Math.max(1, env.databaseConnectionLimit - 1),
+  enableKeepAlive: true,
   waitForConnections: true,
   queueLimit: 0,
   timezone: "Z",

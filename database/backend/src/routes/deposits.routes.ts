@@ -7,6 +7,7 @@ import { DemoTradingEngine } from "../services/trading/demoEngine";
 import { resolveAccountId } from "../services/trading/accountResolver";
 import { logAudit } from "../utils/audit";
 import { query } from "./mariaDbQuery";
+import { withTransaction } from "../db/pool";
 import crypto from "node:crypto";
 
 /**
@@ -46,12 +47,37 @@ export function depositsRouter(demoEngine: DemoTradingEngine) {
       const body = createSchema.parse(req.body);
       const accountId = await resolveAccountId(demoEngine, req.user!.sub, body.mode);
 
+      // Demo deposits settle immediately — it's play money, never a real payment rail. The deposit
+      // row, balance credit and ledger entry are written together or not at all.
+      const isDemo = body.mode === "DEMO";
       const depositId = crypto.randomUUID();
-      await query(
-        `INSERT INTO deposits (id, trading_account_id, amount, currency, method, status)
-         VALUES (?,?,?,?,?,'PENDING')`,
-        [depositId, accountId, body.amount, body.currency, body.method]
-      );
+      await withTransaction(async (client) => {
+        await client.query(
+          `INSERT INTO deposits (id, trading_account_id, amount, currency, method, status, provider_reference, confirmed_at)
+           VALUES (?,?,?,?,?,?,?,?)`,
+          [
+            depositId,
+            accountId,
+            body.amount,
+            body.currency,
+            body.method,
+            isDemo ? "COMPLETED" : "PENDING",
+            isDemo ? "DEMO-INSTANT" : null,
+            isDemo ? new Date() : null,
+          ]
+        );
+        if (!isDemo) return;
+        const balanceUpdate = await client.query(
+          `UPDATE balances SET cash_balance = cash_balance + ?, updated_at = now() WHERE trading_account_id = ?`,
+          [body.amount, accountId]
+        );
+        if (balanceUpdate.rowCount !== 1) throw new Error("Balances not found for deposit account");
+        await client.query(
+          `INSERT INTO transactions (trading_account_id, type, amount, reference_id, description)
+           VALUES (?,'DEPOSIT',?,?,'Demo deposit')`,
+          [accountId, body.amount, depositId]
+        );
+      });
       const result = await query(`SELECT * FROM deposits WHERE id = ?`, [depositId]);
       const deposit = result.rows[0];
 
@@ -60,27 +86,9 @@ export function depositsRouter(demoEngine: DemoTradingEngine) {
         actorId: req.user!.sub,
         action: "DEPOSIT_REQUESTED",
         targetType: "deposit",
-        targetId: deposit.id,
+        targetId: depositId,
         metadata: { amount: body.amount, method: body.method, mode: body.mode },
       });
-
-      if (body.mode === "DEMO") {
-        // Demo deposits settle immediately — it's play money, never a real payment rail.
-        await query(
-          `UPDATE deposits SET status = 'COMPLETED', confirmed_at = now(), provider_reference = 'DEMO-INSTANT' WHERE id = ?`,
-          [deposit.id]
-        );
-        await query(
-          `UPDATE balances SET cash_balance = cash_balance + ?, updated_at = now() WHERE trading_account_id = ?`,
-          [body.amount, accountId]
-        );
-        await query(
-          `INSERT INTO transactions (trading_account_id, type, amount, reference_id, description)
-           VALUES (?,'DEPOSIT',?,?,'Demo deposit')`,
-          [accountId, body.amount, deposit.id]
-        );
-        deposit.status = "COMPLETED";
-      }
 
       res.status(201).json(deposit);
     })

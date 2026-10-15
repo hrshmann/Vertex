@@ -47,11 +47,15 @@ export function adminWithdrawalsRouter() {
         if (!withdrawal) throw new ApiError(404, "Withdrawal not found or already decided");
 
         if (body.status === "APPROVED") {
+          // Free margin is re-checked here: it may have shrunk since the request was made.
           const balanceUpdate = await client.query(
-            `UPDATE balances SET cash_balance = cash_balance - ?, updated_at = now() WHERE trading_account_id = ?`,
-            [withdrawal.amount, withdrawal.trading_account_id]
+            `UPDATE balances SET cash_balance = cash_balance - ?, updated_at = now()
+             WHERE trading_account_id = ? AND cash_balance - used_margin >= ?`,
+            [withdrawal.amount, withdrawal.trading_account_id, withdrawal.amount]
           );
-          if (balanceUpdate.rowCount !== 1) throw new Error("Balances not found for withdrawal account");
+          if (balanceUpdate.rowCount !== 1) {
+            throw new ApiError(409, "Insufficient free margin to approve this withdrawal");
+          }
           await client.query(
             `INSERT INTO transactions (trading_account_id, type, amount, reference_id, description)
              VALUES (?,'WITHDRAWAL',?,?,'Withdrawal approved')`,

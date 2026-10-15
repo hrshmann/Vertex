@@ -83,6 +83,7 @@ export const env = {
   databasePassword: requiredDatabaseSetting("DB_PASSWORD"),
   databaseName: requiredDatabaseSetting("DB_NAME"),
   databaseConnectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 10),
+  databaseIdleTimeoutMs: Number(process.env.DB_IDLE_TIMEOUT_MS ?? 15_000),
   databaseSsl: process.env.DB_SSL === "true",
 
   // Signing secrets — MUST be overridden in production via .env (never committed).

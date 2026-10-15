@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../utils/asyncHandler";
 import { DemoTradingEngine } from "../services/trading/demoEngine";
 import { resolveAccountId } from "../services/trading/accountResolver";
+import { parseLimit } from "../utils/pagination";
 
 export function accountRouter(demoEngine: DemoTradingEngine) {
   const router = Router();
@@ -44,7 +45,7 @@ export function accountRouter(demoEngine: DemoTradingEngine) {
     asyncHandler(async (req, res) => {
       const mode = String(req.query.mode ?? "DEMO");
       const accountId = await resolveAccountId(demoEngine, req.user!.sub, mode);
-      const limit = Math.min(Number(req.query.limit ?? 100), 500);
+      const limit = parseLimit(req.query.limit, 100, 500);
       const result = await query(
         `SELECT * FROM transactions WHERE trading_account_id = ? ORDER BY created_at DESC LIMIT ?`,
         [accountId, limit]

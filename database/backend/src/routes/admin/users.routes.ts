@@ -5,6 +5,7 @@ import { requireAdmin, requireRole } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiError } from "../../middleware/errorHandler";
 import { logAudit } from "../../utils/audit";
+import { parseLimit } from "../../utils/pagination";
 
 export function adminUsersRouter() {
   const router = Router();
@@ -14,7 +15,7 @@ export function adminUsersRouter() {
     "/",
     asyncHandler(async (req, res) => {
       const search = (req.query.search as string | undefined)?.trim();
-      const limit = Math.min(Number(req.query.limit ?? 50), 200);
+      const limit = parseLimit(req.query.limit, 50, 200);
       const params: any[] = [];
       let where = "";
       if (search) {
@@ -57,6 +58,11 @@ export function adminUsersRouter() {
     requireRole("SUPER_ADMIN", "COMPLIANCE"),
     asyncHandler(async (req, res) => {
       await query(`UPDATE users SET is_suspended = TRUE WHERE id = ?`, [req.params.id]);
+      // End existing sessions; the short-lived access token (JWT_ACCESS_TTL) expires on its own.
+      await query(
+        `UPDATE user_sessions SET revoked_at = UTC_TIMESTAMP(6) WHERE user_id = ? AND revoked_at IS NULL`,
+        [req.params.id]
+      );
       await logAudit({
         actorType: "admin",
         actorId: req.admin!.id,

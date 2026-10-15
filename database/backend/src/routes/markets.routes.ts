@@ -3,6 +3,7 @@ import { getInstrumentBySymbol, listInstruments } from "../services/marketData/i
 import { getAllQuotes, getQuote } from "../services/marketData/quoteCache";
 import { getCandles, UnsupportedCandleRequest } from "../services/marketData/candles";
 import { asyncHandler } from "../utils/asyncHandler";
+import { parseLimit } from "../utils/pagination";
 import { ApiError } from "../middleware/errorHandler";
 
 export function marketsRouter() {
@@ -50,7 +51,7 @@ export function marketsRouter() {
       const instrument = getInstrumentBySymbol(symbol);
       if (!instrument) throw new ApiError(404, `Unknown instrument: ${symbol}`);
       const timeframe = String(req.query.timeframe ?? "1H");
-      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const limit = parseLimit(req.query.limit, 300, 1000);
       try {
         const candles = await getCandles(instrument, timeframe, limit);
         res.json({ symbol, timeframe, provider: instrument.provider, isIndicative: instrument.provider === "frankfurter", candles });

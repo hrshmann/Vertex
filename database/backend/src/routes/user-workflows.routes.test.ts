@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./mariaDbQuery", () => ({ query: mocks.query }));
+vi.mock("../db/pool", () => ({ withTransaction: vi.fn() }));
 vi.mock("../utils/jwt", () => ({ verifyAccessToken: mocks.verifyAccessToken }));
 vi.mock("../services/trading/accountResolver", () => ({
   resolveAccountId: mocks.resolveAccountId,

@@ -42,57 +42,49 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-line px-5 font-semibold">
-          <Logo className="h-6 w-6" />
-          Vertex admin
-        </div>
-        <nav aria-label="Admin" className="flex-1 space-y-0.5 p-3">
-          {NAV.map(({ href, label, icon: Icon, exact }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={clsx(
-                  "flex items-center gap-3 rounded-control px-3 py-2 text-sm transition-colors",
-                  active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-raised hover:text-ink"
-                )}
-              >
-                <Icon className="h-[18px] w-[18px]" aria-hidden />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t border-line p-4">
-          <p className="truncate text-xs font-medium">{admin.email}</p>
-          <p className="text-2xs text-muted">{ROLE_LABELS[admin.role] ?? admin.role}</p>
-          <div className="mt-3 flex items-center justify-between">
-            <button onClick={() => void logout()} className="flex items-center gap-2 text-xs text-muted hover:text-sell">
-              <LogOut className="h-3.5 w-3.5" />
-              Log out
-            </button>
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
+          <Link href="/admin" className="flex shrink-0 items-center gap-2 font-semibold">
+            <Logo className="h-6 w-6" />
+            <span className="hidden sm:inline">Vertex admin</span>
+          </Link>
+          <nav aria-label="Admin" className="flex min-w-0 items-center gap-1 overflow-x-auto">
+            {NAV.map(({ href, label, icon: Icon, exact }) => {
+              const active = exact ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={clsx(
+                    "flex shrink-0 items-center gap-2 rounded-control px-3 py-2 text-sm transition-colors",
+                    active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-raised hover:text-ink"
+                  )}
+                >
+                  <Icon className="hidden h-4 w-4 sm:block" aria-hidden />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="hidden text-right md:block">
+              <p className="max-w-[14rem] truncate text-xs font-medium">{admin.email}</p>
+              <p className="text-2xs text-muted">{ROLE_LABELS[admin.role] ?? admin.role}</p>
+            </div>
             <ThemeToggle />
+            <button
+              onClick={() => void logout()}
+              aria-label="Log out"
+              className="flex h-9 w-9 items-center justify-center rounded-control text-muted transition-colors hover:bg-raised hover:text-sell"
+            >
+              <LogOut className="h-[18px] w-[18px]" />
+            </button>
           </div>
         </div>
-      </aside>
-      <div className="min-w-0 flex-1">
-        {/* Phones: a compact top navigation instead of the sidebar. */}
-        <nav aria-label="Admin" className="flex gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 md:hidden">
-          {NAV.map(({ href, label, exact }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link key={href} href={href} className={clsx("shrink-0 rounded-control px-3 py-1.5 text-xs", active ? "bg-accent-soft font-medium text-accent" : "text-muted")}>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <main>{children}</main>
-      </div>
+      </header>
+      <main className="mx-auto max-w-7xl">{children}</main>
     </div>
   );
 }

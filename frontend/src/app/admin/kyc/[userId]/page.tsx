@@ -145,7 +145,7 @@ export default function AdminKycReviewPage() {
           })}
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
           <Panel title="Submission">
             <ul className="space-y-2">
               {checks.map((c) => (

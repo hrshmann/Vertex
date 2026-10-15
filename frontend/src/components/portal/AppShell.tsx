@@ -40,29 +40,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <KycProvider>
-    <div className="min-h-screen lg:flex">
-      <Sidebar pathname={pathname} />
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-canvas/90 px-4 backdrop-blur sm:px-6">
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold lg:hidden">
-            <Logo className="h-6 w-6" />
-            Vertex
-          </Link>
-          <p className="hidden text-xs text-muted lg:block">Prices stream live from Coinbase and Kraken.</p>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <NotificationsMenu />
-            <UserMenu />
+      <div className="min-h-screen">
+        <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur">
+          <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+            <Link href="/dashboard" className="flex shrink-0 items-center gap-2 font-semibold">
+              <Logo className="h-6 w-6" />
+              Vertex Trading
+            </Link>
+            <TopNav pathname={pathname} />
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
+              <NotificationsMenu />
+              <UserMenu />
+            </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
-          {/* Verification has its own page, and the overview's onboarding track already shows it. */}
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 lg:pb-16">
+          {/* Verification has its own page, and the overview already shows it. */}
           {pathname !== "/kyc" && pathname !== "/dashboard" && <KycBanner />}
           {children}
         </main>
+        <MobileNav pathname={pathname} />
       </div>
-      <MobileNav pathname={pathname} />
-    </div>
     </KycProvider>
   );
 }
@@ -74,34 +73,32 @@ function isActive(pathname: string, href: string) {
 function KycDot() {
   const { kyc } = useKyc();
   if (!kyc || kyc.status === "APPROVED" || kyc.status === "UNDER_REVIEW") return null;
-  return <span aria-label="Action needed" className="ml-auto h-2 w-2 rounded-full bg-warn" />;
+  return <span aria-label="Action needed" className="h-2 w-2 rounded-full bg-warn" />;
 }
 
-function Sidebar({ pathname }: { pathname: string }) {
+/** Desktop navigation: four links in the header, no sidebar. */
+function TopNav({ pathname }: { pathname: string }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
-      <Link href="/dashboard" className="flex h-14 items-center gap-2 border-b border-line px-5 font-semibold">
-        <Logo className="h-6 w-6" />
-        Vertex Trading
-      </Link>
-      <nav aria-label="Main" className="flex-1 space-y-0.5 p-3">
-        {NAV.map(({ href, label, icon: Icon }) => (
+    <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active = isActive(pathname, href);
+        return (
           <Link
             key={href}
             href={href}
-            aria-current={isActive(pathname, href) ? "page" : undefined}
+            aria-current={active ? "page" : undefined}
             className={clsx(
-              "flex items-center gap-3 rounded-control px-3 py-2 text-sm transition-colors",
-              isActive(pathname, href) ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-raised hover:text-ink"
+              "flex items-center gap-2 rounded-control px-3 py-2 text-sm transition-colors",
+              active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-raised hover:text-ink"
             )}
           >
-            <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
+            <Icon className="h-4 w-4 shrink-0" aria-hidden />
             {label}
             {href === "/kyc" && <KycDot />}
           </Link>
-        ))}
-      </nav>
-    </aside>
+        );
+      })}
+    </nav>
   );
 }
 

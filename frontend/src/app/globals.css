@@ -10,10 +10,10 @@
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  --canvas: 244 245 247;
+  --canvas: 242 244 249;
   --surface: 255 255 255;
-  --raised: 248 249 251;
-  --line: 226 229 234;
+  --raised: 246 247 252;
+  --line: 224 228 238;
   --ink: 18 22 28;
   --muted: 94 102 117;
   --accent: 76 91 212;
@@ -35,15 +35,15 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --canvas: 12 15 20;
-  --surface: 19 23 31;
-  --raised: 26 31 41;
-  --line: 37 43 54;
-  --ink: 230 233 239;
-  --muted: 140 149 165;
+  --canvas: 9 13 26;
+  --surface: 15 21 38;
+  --raised: 22 30 52;
+  --line: 33 42 66;
+  --ink: 230 234 243;
+  --muted: 139 150 176;
   --accent: 140 151 255;
-  --accent-soft: 32 36 66;
-  --accent-ink: 12 15 20;
+  --accent-soft: 31 37 78;
+  --accent-ink: 9 13 26;
   --buy: 39 194 140;
   --buy-soft: 16 46 37;
   --sell: 255 99 119;
@@ -56,6 +56,12 @@ html,
 body {
   background-color: rgb(var(--canvas));
   color: rgb(var(--ink));
+}
+
+/* A soft accent glow behind the top of every page, so the background isn't a flat fill. */
+body {
+  background-image: radial-gradient(70rem 28rem at 50% -8rem, rgb(var(--accent) / 0.13), transparent 70%);
+  background-repeat: no-repeat;
 }
 
 body {

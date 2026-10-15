@@ -1,0 +1,16 @@
+{
+  "name": "vertex-trading",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hostinger entry points for the Vertex Trading website (frontend/) and API (database/backend/). See HOSTINGER_DEPLOYMENT.md.",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "build:api": "npm ci --prefix database/backend",
+    "build:web": "npm ci --include=dev --prefix frontend && npm run build --prefix frontend",
+    "start:api": "node api.js",
+    "start:web": "node web.js",
+    "hostinger:env": "node scripts/hostinger-env.mjs"
+  }
+}

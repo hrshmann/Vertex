@@ -4,13 +4,17 @@
  */
 import "dotenv/config";
 import { pool } from "./pool";
-import { hashPassword } from "../utils/password";
+import { hashPassword, isPasswordStrongEnough } from "../utils/password";
 
 async function run() {
   const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) {
     console.error("Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables first.");
+    process.exit(1);
+  }
+  if (password.length < 12 || !isPasswordStrongEnough(password)) {
+    console.error("ADMIN_PASSWORD must be at least 12 characters with upper and lower case letters and a number.");
     process.exit(1);
   }
   const hash = await hashPassword(password);

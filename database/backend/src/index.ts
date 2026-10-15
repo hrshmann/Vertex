@@ -9,6 +9,7 @@ import { apiRateLimiter } from "./middleware/rateLimit";
 import { WsHub } from "./services/ws/wsHub";
 import { DemoTradingEngine } from "./services/trading/demoEngine";
 import { startMarketData } from "./services/marketData";
+import { getAllQuotes } from "./services/marketData/quoteCache";
 import { pool } from "./db/pool";
 
 import { authRouter } from "./routes/auth.routes";
@@ -50,6 +51,30 @@ async function main() {
 
   app.get("/health", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
+  // Deployment check: database reachability, which feed each quote currently comes from, and
+  // the client IP as the API sees it (it should be your own IP; if it is a proxy's address,
+  // TRUST_PROXY_HOPS is wrong and every visitor would share one rate limit).
+  app.get("/health/ready", async (req, res) => {
+    let database = "ok";
+    try {
+      await pool.query("SELECT 1");
+    } catch (err) {
+      database = `error: ${(err as { code?: string }).code ?? "unreachable"}`;
+    }
+    const quotes = getAllQuotes();
+    const quoteSources: Record<string, number> = {};
+    for (const quote of quotes) quoteSources[quote.source] = (quoteSources[quote.source] ?? 0) + 1;
+    res.status(database === "ok" ? 200 : 503).json({
+      ok: database === "ok",
+      database,
+      quotes: quotes.length,
+      quoteSources,
+      websocketClients: hub.connectedCount,
+      clientIp: req.ip,
+      ts: new Date().toISOString(),
+    });
+  });
+
   app.use("/api/auth", authRouter(demoEngine));
   app.use("/api/markets", marketsRouter());
   app.use("/api/account", accountRouter(demoEngine));
@@ -65,6 +90,7 @@ async function main() {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
+  await checkDatabaseConnection();
   const marketData = await startMarketData(hub, demoEngine);
 
   server.listen(env.port, "0.0.0.0", () => {
@@ -95,6 +121,23 @@ async function main() {
   };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
+}
+
+/** Fails startup with an actionable message instead of a bare driver error. */
+async function checkDatabaseConnection() {
+  try {
+    await pool.query("SELECT 1");
+  } catch (err) {
+    const code = (err as { code?: string }).code ?? "UNKNOWN";
+    const hint =
+      code === "ER_ACCESS_DENIED_ERROR" || code === "ER_DBACCESS_DENIED_ERROR"
+        ? "Check DB_USER, DB_PASSWORD and DB_NAME against hPanel → Databases."
+        : code === "ER_TOO_MANY_USER_CONNECTIONS" || code === "ER_USER_LIMIT_REACHED"
+          ? "The database user hit its connection limit; lower DB_CONNECTION_LIMIT and redeploy."
+          : "On Hostinger, set DB_HOST=localhost. From another machine, allow its IP under hPanel → Databases → Remote MySQL.";
+    console.error(`[fatal] cannot connect to database ${env.databaseName} at ${env.databaseHost}:${env.databasePort} (${code}). ${hint}`);
+    throw err;
+  }
 }
 
 main().catch((err) => {

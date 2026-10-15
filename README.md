@@ -7,8 +7,8 @@ order-matching/risk engine, KYC upload, deposits/withdrawals, and a basic admin 
 "What's not built yet" below for what's intentionally out of scope for this pass.
 
 To go live on Hostinger, follow [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md), the
-step-by-step launch guide. The root `package.json`, `api.js` and `web.js` are Hostinger's build
-scripts and entry files for the two apps.
+step-by-step launch guide. The root `package.json` and `app.js` are Hostinger's build script and
+entry file: one app serves the website and API together on one address.
 
 ## Project layout
 

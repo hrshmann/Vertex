@@ -1,218 +1,188 @@
-# Hostinger deployment
+# Going live on Hostinger
 
-The user confirmed that hPanel offers persistent **Node.js Web App** hosting. This deployment
-uses one persistent Node app for the frontend and one for the API; confirm the plan's concurrent
-app quota and outbound access to the existing MariaDB before creating them. The exact plan name,
-account limits, and database network reachability have not been independently verified. Docker
-is not required. WebSockets are optional; market quotes also refresh through REST polling.
+Vertex Trading runs as **two Hostinger Node.js web apps built from this one repository**:
 
-If the current plan does not offer persistent Node.js web apps, this architecture will not run
-on that plan. Use a Hostinger VPS (the lowest-cost Hostinger product that provides long-running
-Node processes and reverse-proxy control) or upgrade to a plan that explicitly supports Node.js
-web apps. Confirm current plan features and pricing in hPanel; they are account/product-specific.
+| App | Domain | Build command | Entry file | Env file to import |
+| --- | --- | --- | --- | --- |
+| API | `api.yourdomain.com` | `build:api` | `api.js` | `.env.hostinger-api` |
+| Website | `yourdomain.com` (+ `www`) | `build:web` | `web.js` | `.env.hostinger-web` |
 
-## Application layout and deployment roots
+Hostinger's Node.js apps have no root-directory or start-command setting. They run an npm script
+from the repository's root `package.json` and start an entry file from the repository root. The
+root `package.json`, `api.js` and `web.js` exist for exactly this. They build and start
+`database/backend/` and `frontend/`.
 
-Deploy the existing repository twice from the same codebase:
+The database is already set up on Hostinger. It runs MariaDB 11.8 and all migrations are
+applied, so no database step is needed beyond creating your admin account.
 
-| App | Hostinger application root | Runtime |
-| --- | --- | --- |
-| Frontend | `frontend/` | Next.js Node server |
-| API | `database/backend/` | Express API, MariaDB pool, market-data clients |
+## Before you start
 
-### Hostinger Express app entry
+- **Plan:** Node.js web apps are available on **Business** web hosting and **Cloud** plans. You
+  need two free web-app slots. VPS plans don't have this panel.
+- **Domain:** `yourdomain.com` should be on your Hostinger account, with its DNS pointing to
+  Hostinger. If a website already exists on that domain in hPanel, remove it first, because a
+  Node.js app can't be added to a domain that already has a site.
+- **Code on GitHub:** Hostinger deploys from the GitHub repository, from the `main` branch by
+  default. Push all changes first.
 
-For the API application, set the Hostinger application root/working directory to
-`database/backend/`. Do not configure `server.js`: this backend is TypeScript and has no
-source `server.js`. TypeScript compiles `src/index.ts` to `dist/index.js`, as specified by the
-backend `tsconfig.json` and `package.json` `main`/`start` entries.
+## Step 1 — Generate the environment files (on your PC)
 
-Use these API settings in Hostinger:
-
-- Application type: **Express**
-- Node.js version: **22**
-- Build command: `npm ci && npm run build`
-- Entry/start command: `node dist/index.js` (equivalently, `npm run start`)
-
-The build creates `database/backend/dist/index.js` relative to the API root. Configure the
-entry path relative to that root as `dist/index.js`, not `server.js`. The process reads the
-platform-assigned `PORT` and the existing MariaDB connection from its environment. Starting
-the compiled entry does not run migrations.
-
-Keep `database/migrations/` in the repository for controlled, manual schema maintenance only.
-The API startup command does **not** run migrations. This project already has an initialized
-Hostinger schema; do not run migrations as part of this deployment.
-
-Use Node.js 22 for the API. Set each app's build command to:
+From the repository root:
 
 ```sh
-npm ci && npm run build
+npm run hostinger:env -- --domain yourdomain.com
 ```
 
-Set the API app's start command to:
+This writes two git-ignored files in the repository root:
+
+- `.env.hostinger-api` contains `NODE_ENV=production`, `DB_HOST=localhost`, your database login
+  (read from `database/backend/.env`), `DB_CONNECTION_LIMIT=5`, and new random JWT secrets and
+  encryption key. It also sets `CORS_ORIGIN` for `https://yourdomain.com` and
+  `https://www.yourdomain.com`, and `TRUST_PROXY_HOPS=1`.
+- `.env.hostinger-web` contains `NEXT_PUBLIC_API_URL=https://api.yourdomain.com` and
+  `NEXT_PUBLIC_WS_URL=wss://api.yourdomain.com/ws`.
+
+**Back both files up somewhere private.** Running the command again keeps the existing secrets.
+Pass `--rotate` only if a secret has leaked: it logs every user out and makes stored encrypted
+values unreadable.
+
+## Step 2 — Create your admin account (on your PC)
+
+Your PC's IP already has Remote MySQL access to the database. In `database/backend/.env`, set:
 
 ```sh
-npm run start
+ADMIN_EMAIL=you@yourdomain.com
+ADMIN_PASSWORD=<at least 12 characters, upper and lower case, a number>
 ```
 
-Set the frontend app's start command to:
+Then run:
 
 ```sh
-node .next/standalone/server.js
+cd database/backend
+npm run seed:admin
 ```
 
-Run each command with its app root as the working directory. The frontend build stages the
-standalone server and its static/public assets automatically. The API listens on the assigned
-`PORT` (falling back to 4000 only for local use); the frontend standalone server also honors
-`PORT` (falling back to 3000 locally). Keep the Node processes managed by Hostinger; do not
-start them from an SSH shell or a temporary background command.
+It prints `[seed:admin] admin ready`. **Then delete the `ADMIN_PASSWORD` value from the file.**
+Running the command again with the same email resets that admin's password.
 
-## Domains, TLS, and cookies
+## Step 3 — Deploy the API
 
-Use one registrable domain for the site and API, for example:
+1. In hPanel, go to **Websites → Add Website → Node.js Web App → Import Git repository**.
+2. Click **Connect with GitHub**, install the Hostinger GitHub App, and allow it access to
+   `hrshmann/Vertex`. Then pick that repository.
+3. Choose the domain **`api.yourdomain.com`**. If the subdomain isn't listed, create it first under
+   **Domains → Subdomains**.
+4. Fill in the build settings:
+   - **Framework preset:** Other (or Express)
+   - **Branch:** `main`
+   - **Node.js version:** 22
+   - **Build command:** `build:api`. If the field wants a full command, use `npm run build:api`.
+   - **Entry file:** `api.js`
+   - **Output directory:** leave empty
+   - **Environment variables:** **Import from .env file** → `.env.hostinger-api`
+5. Click **Deploy** and watch the build log. It ends with the backend compiling (`tsc`).
+6. In **Runtime Logs**, you should see:
+   ```text
+   [instruments] loaded 12 instruments
+   [vertex-trading-backend] listening on configured port (production)
+   [coinbase] connected
+   [kraken] connected
+   ```
+   `[kraken] not subscribed: Currency pair not supported NZD/USD` is expected.
 
-- Frontend: `https://www.example.com` (or the apex domain)
-- API: `https://api.example.com`
+**Check it:** open `https://api.yourdomain.com/health/ready`. You should see:
 
-Point both DNS records to the destinations shown for their respective apps in hPanel and enable
-Hostinger TLS certificates for both. Keeping the apps on the same registrable domain allows the
-browser to send the API's secure, HTTP-only cookies on credentialed frontend requests. Do not
-set a broad cookie domain; cookies remain scoped to the API host. Configure the exact frontend
-origin in `CORS_ORIGIN`, with no path or trailing slash. Multiple allowed origins can be given
-as a comma-separated list.
-
-Set `TRUST_PROXY_HOPS` to the reverse-proxy hop count documented by Hostinger. The default in
-production is `1`; do not increase it based on guesswork. The API marks auth cookies secure in
-production and trusts forwarded HTTPS metadata only from the configured proxy chain.
-
-## Environment variables
-
-Configure these in Hostinger's private app environment settings, not in source control:
-
-### API runtime (`database/backend/`)
-
-Required:
-
-- `NODE_ENV=production`
-- `PORT` (use Hostinger's assigned value; usually injected by the platform)
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `JWT_ADMIN_SECRET`
-- `ENCRYPTION_KEY`
-- `CORS_ORIGIN`
-
-Also configure:
-
-- `TRUST_PROXY_HOPS` — the exact proxy hop count confirmed by Hostinger.
-- `DB_SSL=true` if Hostinger requires TLS for connections to this MariaDB service.
-- `DB_CONNECTION_LIMIT=5`. The Hostinger database user is capped at 500 new connections per
-  hour (`MAX_CONNECTIONS_PER_HOUR 500`); exceeding it locks the API out of the database until the
-  hour resets. A small pool keeps reconnect churn well under that cap. The application default
-  is 10.
-- `DB_IDLE_TIMEOUT_MS` (default `15000`). Must stay below the server's `wait_timeout`, which is
-  20 seconds on this database, so the pool closes idle connections before the server drops them.
-- Optional feed configuration: `COINBASE_WS_BASE`, `KRAKEN_WS_BASE`, `KRAKEN_REST_BASE`,
-  `BINANCE_WS_BASE`, `BINANCE_REST_BASE`, `FOREX_INDICATIVE_BASE`, and `FOREX_POLL_INTERVAL_MS`.
-  The defaults are correct; leave them unset unless a provider changes its address. The API
-  needs outbound WebSocket access to `ws-feed.exchange.coinbase.com`, `ws.kraken.com` and
-  `stream.binance.com:9443`. Binance blocks some regions, including the US. Coinbase is the
-  primary crypto feed, so prices keep working there, but crypto chart history comes from Binance.
-  After deploying, check the API log for `[coinbase] connected` and `[kraken] connected`.
-- Optional token lifetime configuration: `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL_DAYS`, and
-  `JWT_ADMIN_TTL`.
-
-Generate three distinct, random JWT secrets of at least 32 characters. Generate `ENCRYPTION_KEY`
-as 64 hex characters (32 random bytes). These secrets are not interchangeable. Store them only
-in Hostinger's private environment configuration and keep a secure backup: rotating the
-encryption key can make previously encrypted API credentials unreadable.
-
-### Frontend build environment (`frontend/`)
-
-Set these before the production build because Next.js embeds `NEXT_PUBLIC_*` values in browser
-assets:
-
-- `NEXT_PUBLIC_API_URL=https://api.example.com`
-- `NEXT_PUBLIC_WS_URL=wss://api.example.com/ws` only if Hostinger confirms WebSocket proxying.
-- `NEXT_PUBLIC_MARKET_POLL_INTERVAL_MS=10000` (optional; minimum 1000 ms).
-
-The frontend build fails if `NEXT_PUBLIC_API_URL` is absent or points to localhost in production.
-If WebSockets are not supported or not yet confirmed, omit `NEXT_PUBLIC_WS_URL`; the frontend
-will not open a socket and will refresh market data over REST polling. This keeps prices updating
-without relying on persistent WebSocket connections.
-
-The MariaDB hostname must be reachable from the API app and its connection must be permitted by
-Hostinger. Confirm any database remote-access allowlist and TLS requirement in hPanel. Do not
-change database grants or schema as part of application deployment.
-
-Database access is granted per client host. The database user currently has remote access only
-from one developer IP (added under hPanel → Databases → Remote MySQL). The deployed API connects
-from Hostinger's own infrastructure, not that IP, so it needs its own access:
-
-- If the Node.js app runs on the same hosting account as the database, try `DB_HOST=localhost`
-  first.
-- Otherwise add the API app's outbound IP in Remote MySQL and keep the `*.hstgr.io` hostname.
-
-If `/health` responds but the API logs `ER_ACCESS_DENIED_ERROR` or `ETIMEDOUT` at startup, this
-access rule is the cause.
-
-## Health check and read-only verification
-
-Configure the platform health check to:
-
-```text
-GET https://api.example.com/health
+```json
+{ "ok": true, "database": "ok", "quotes": 12,
+  "quoteSources": { "coinbase": 5, "kraken": 5, "frankfurter": 2 }, "clientIp": "<your IP>" }
 ```
 
-After deployment, verify without creating an account or performing financial writes:
+- `database` should be `ok`. If it isn't, see Troubleshooting below.
+- `clientIp` should equal your public IP (search "what is my IP"). If it shows another address,
+  the API is seeing the proxy instead of visitors. Every visitor would then share one rate limit,
+  and the site would start returning "Rate limit exceeded" under normal traffic. Raise
+  `TRUST_PROXY_HOPS` by 1 in the app's environment variables, redeploy, and check again. Use the
+  lowest value that shows your IP.
 
-```sh
-curl --fail https://api.example.com/health
-curl --fail https://api.example.com/api/markets
-```
+## Step 4 — Deploy the website
 
-Open the frontend over HTTPS, inspect browser network requests for the configured API hostname,
-and confirm unauthenticated protected endpoints return `401`. Verify the markets view continues
-to refresh when the WebSocket endpoint is unavailable. Do not use production registration,
-deposit, withdrawal, order, or admin-seeding actions as deployment probes.
+Repeat step 3 with these differences:
 
-## Schema and one-time operational tasks
+- **Domain:** `yourdomain.com`. Add `www.yourdomain.com` as an alias, or redirect it to the main
+  domain.
+- **Build command:** `build:web` (or `npm run build:web`)
+- **Entry file:** `web.js`
+- **Environment variables:** import `.env.hostinger-web`
 
-Production app startup never runs migrations. The existing initialized database is expected.
-Only run a future migration as a separately reviewed, explicitly authorized maintenance action,
-after taking a backup and verifying the target database identity. Never add migration execution
-to a Hostinger start command.
+The `NEXT_PUBLIC_*` values are built into the website's code. After changing them, **redeploy**:
+a restart alone doesn't pick them up. The build fails on purpose if `NEXT_PUBLIC_API_URL` is
+missing or isn't HTTPS.
 
-Current database state (checked 2026-10-15): MariaDB 11.8, `utf8mb4_unicode_ci`, with
-`001_init.sql`, `002_seed_instruments.sql` and `003_seed_compliance.sql` recorded in
-`schema_migrations`. The schema and seed data are in place. No admin account exists yet.
+## Step 5 — HTTPS
 
-User registration is available through the application. Admin provisioning is a separate,
-privileged database write; if needed, run the existing `npm run seed:admin` only as a deliberate
-one-time operation with `ADMIN_EMAIL` and `ADMIN_PASSWORD` set privately in that process. Do not
-put these values in a public or committed file. On a machine with remote database access, run it
-from `database/backend/`. In a production install without `tsx`, use the compiled equivalents
-after building: `npm run seed:admin:prod` and `npm run migrate:prod`.
+Make sure SSL is active for `yourdomain.com`, `www.yourdomain.com` and `api.yourdomain.com`
+(**hPanel → Security → SSL**; Hostinger usually issues these automatically). Login cookies are
+HTTPS-only in production, so logging in won't work until SSL is active.
 
-The backend compiles TypeScript in `postinstall`, so the TypeScript toolchain is a regular
-dependency. A plain `npm ci` therefore builds the API even when `NODE_ENV=production` causes npm
-to skip devDependencies.
+## Step 6 — Check the live site
 
-## Product limitations to resolve before public launch
+1. Open `https://yourdomain.com`. The markets on the home page and `/markets` should show live
+   prices that move.
+2. **WebSocket check:** in the browser's developer tools, go to **Network → WS** and reload. A
+   `/ws` connection with status `101` means live streaming works. If WebSockets aren't
+   available, prices still refresh every 3 seconds automatically. Nothing breaks.
+3. Register an account, place a small demo BTC trade in `/terminal`, then close it.
+4. Log in at `https://yourdomain.com/admin/login` with the admin account from step 2.
 
-- WebSocket availability on the paid plan is unverified. If unsupported, market quotes use the
-  REST polling fallback; account event updates do not have that market-data polling fallback.
-- Live broker/exchange order execution is not implemented. The trading engine is demo-only.
-- Deposits and withdrawals have no real payment-provider integration.
-- Email delivery and password-reset delivery are not configured. Do not present these flows as
-  operational until a private email provider and its credentials are integrated.
-- KYC uploads do not yet use private durable object storage; configure that before accepting
-  production documents.
+## Updating the site later
 
-This guide describes code/configuration preparation, not a completed Hostinger deployment.
-The hosting plan, DNS, app processes, database connectivity from the app runtime, and HTTPS
-behavior still need verification in the Hostinger account.
+Push to `main`. Hostinger rebuilds and redeploys both apps automatically. Never change the JWT
+secrets or `ENCRYPTION_KEY` in production unless you mean to log everyone out.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| API log: `[fatal] cannot connect to database ... (ECONNREFUSED)` or `ETIMEDOUT` | Wrong host. Use `DB_HOST=localhost` on Hostinger. |
+| API log: `... (ER_ACCESS_DENIED_ERROR)` | Wrong `DB_USER`, `DB_PASSWORD` or `DB_NAME`. Compare them with hPanel → Databases. |
+| API log: `ER_TOO_MANY_USER_CONNECTIONS` or `ER_USER_LIMIT_REACHED` | The database user is limited to 500 new connections per hour. Keep `DB_CONNECTION_LIMIT=5` and wait for the hour to reset. |
+| API log: `Missing required environment variable: ...` | The env file wasn't imported, or a value is empty. Re-import `.env.hostinger-api`. |
+| Website build fails: `NEXT_PUBLIC_API_URL must ...` | Import `.env.hostinger-web` into the website app and redeploy. |
+| Browser console shows a CORS error | `CORS_ORIGIN` must exactly match the address in the browser bar (`https://`, no trailing slash). The generator includes both the plain and `www` addresses. |
+| Login succeeds but you're logged straight out | SSL isn't active on `api.` yet, or the site and API aren't on the same domain. |
+| Everyone gets "Rate limit exceeded" | `TRUST_PROXY_HOPS` is too low. See the `clientIp` check in step 3. |
+| App says "unresponsive" | It must listen on Hostinger's `PORT`. Both entry files do, so check the runtime log for a startup error. |
+| No crypto prices | Look for `[coinbase] connected` in the API log. Binance takes over automatically if Coinbase is unreachable. Binance is blocked in some regions, including the US. |
+
+## Reference
+
+**Database facts (checked 2026-10-15):** MariaDB 11.8, `utf8mb4_unicode_ci`. `001_init.sql`,
+`002_seed_instruments.sql` and `003_seed_compliance.sql` are recorded in `schema_migrations`.
+The database user is capped at `MAX_CONNECTIONS_PER_HOUR 500`, and the server's `wait_timeout`
+is 20 seconds. The pool closes idle connections after `DB_IDLE_TIMEOUT_MS` (default 15000). Keep
+that below `wait_timeout`.
+
+**Migrations** never run on startup. Run a future migration only as a deliberate, backed-up
+maintenance step, from your PC (`cd database/backend && npm run migrate`).
+
+**Optional API variables:** `DB_SSL`, `DB_IDLE_TIMEOUT_MS`, `JWT_ACCESS_TTL` (default `15m`),
+`JWT_REFRESH_TTL_DAYS` (default `7`) and `JWT_ADMIN_TTL` (default `8h`). Feed addresses are
+`COINBASE_WS_BASE`, `KRAKEN_WS_BASE`, `KRAKEN_REST_BASE`, `BINANCE_WS_BASE`,
+`BINANCE_REST_BASE`, `FOREX_INDICATIVE_BASE` and `FOREX_POLL_INTERVAL_MS`. Their defaults are
+correct; leave them unset. The API needs outbound access to `ws-feed.exchange.coinbase.com`,
+`ws.kraken.com`, `api.kraken.com`, `stream.binance.com:9443`, `api.binance.com` and
+`api.frankfurter.dev`.
+
+**Optional website variable:** `NEXT_PUBLIC_MARKET_POLL_INTERVAL_MS` (default `10000`), the
+resync interval while the WebSocket is connected.
+
+## Product limitations to resolve before a public launch
+
+- Trading is demo-only. Live broker or exchange execution isn't implemented.
+- Deposits and withdrawals have no real payment provider.
+- Email isn't configured, so password reset can't send anything.
+- KYC uploads are recorded but not stored. Set up private file storage before accepting real
+  documents.
+- Legal pages show placeholder text (`database/migrations/003_seed_compliance.sql`). Replace it
+  with text for your licensed entity and jurisdiction.
+- Forex prices are indicative only. USD/JPY and NZD/USD use the daily ECB rate (see `README.md`).

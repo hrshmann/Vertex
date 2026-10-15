@@ -6,9 +6,9 @@ Node.js/Express API + WebSocket gateway, MariaDB. This is the MVP core of the fu
 order-matching/risk engine, KYC upload, deposits/withdrawals, and a basic admin panel. See
 "What's not built yet" below for what's intentionally out of scope for this pass.
 
-For Hostinger deployment configuration, app roots, environment variables, and plan requirements,
-see [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md). The exact capabilities of the paid
-Hostinger plan must be confirmed in hPanel before deployment.
+To go live on Hostinger, follow [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md), the
+step-by-step launch guide. The root `package.json`, `api.js` and `web.js` are Hostinger's build
+scripts and entry files for the two apps.
 
 ## Project layout
 
@@ -77,9 +77,10 @@ npm run migrate
 npm run seed:admin        # ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run seed:admin
 ```
 
-For Hostinger, set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in
-`database/backend/.env` using the database details from hPanel. Enable `DB_SSL=true` if the host requires
-TLS. Do not copy local Docker credentials to a hosted database.
+To develop against the Hostinger database, set `DB_HOST` (the `*.hstgr.io` host from hPanel),
+`DB_PORT`, `DB_USER`, `DB_PASSWORD` and `DB_NAME` in `database/backend/.env`, and allow your IP
+under hPanel → Databases → Remote MySQL. The deployed API uses `DB_HOST=localhost` instead. Enable
+`DB_SSL=true` if the host requires TLS. Do not copy local Docker credentials to a hosted database.
 
 ### 2. Backend
 

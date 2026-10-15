@@ -65,6 +65,13 @@ export async function startServer(options: StartServerOptions = {}) {
   app.use(apiOnly(express.json({ limit: "15mb" }))); // generous enough for base64 KYC uploads in MVP
   app.use(apiOnly(cookieParser()));
   app.use(apiOnly(apiRateLimiter));
+  // API responses carry live prices and per-user account data: never let a CDN or browser cache them.
+  app.use(
+    apiOnly((_req, res, next) => {
+      res.setHeader("Cache-Control", "no-store");
+      next();
+    })
+  );
 
   const hub = new WsHub(server, env.corsOrigins);
   const demoEngine = new DemoTradingEngine(hub);

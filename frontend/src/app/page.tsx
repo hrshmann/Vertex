@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMarkets } from "@/lib/useMarkets";
 import { PriceFlash } from "@/components/PriceFlash";
+import { priceDecimals } from "@/lib/format";
 import { useAuth } from "@/lib/AuthContext";
 
 const FEATURES = [
@@ -94,7 +95,7 @@ function TickerCard({ title, rows }: { title: string; rows: ReturnType<typeof us
                 {!r.isExecutable && <div className="text-[10px] vx-muted uppercase tracking-wide">indicative</div>}
               </div>
               <div className="flex items-center gap-4">
-                <PriceFlash value={q?.last} decimals={r.class === "FOREX" ? 5 : 2} className="font-medium" />
+                <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="font-medium" />
                 {q?.change24hPct != null && (
                   <span className={up ? "text-vx-buy text-xs vx-tabular" : "text-vx-sell text-xs vx-tabular"}>
                     {up ? "+" : ""}

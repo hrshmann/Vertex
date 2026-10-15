@@ -116,8 +116,13 @@ Also configure:
   is 10.
 - `DB_IDLE_TIMEOUT_MS` (default `15000`). Must stay below the server's `wait_timeout`, which is
   20 seconds on this database, so the pool closes idle connections before the server drops them.
-- Optional feed configuration: `BINANCE_WS_BASE`, `BINANCE_REST_BASE`,
-  `FOREX_INDICATIVE_BASE`, and `FOREX_POLL_INTERVAL_MS`.
+- Optional feed configuration: `COINBASE_WS_BASE`, `KRAKEN_WS_BASE`, `KRAKEN_REST_BASE`,
+  `BINANCE_WS_BASE`, `BINANCE_REST_BASE`, `FOREX_INDICATIVE_BASE`, and `FOREX_POLL_INTERVAL_MS`.
+  The defaults are correct; leave them unset unless a provider changes its address. The API
+  needs outbound WebSocket access to `ws-feed.exchange.coinbase.com`, `ws.kraken.com` and
+  `stream.binance.com:9443`. Binance blocks some regions, including the US. Coinbase is the
+  primary crypto feed, so prices keep working there, but crypto chart history comes from Binance.
+  After deploying, check the API log for `[coinbase] connected` and `[kraken] connected`.
 - Optional token lifetime configuration: `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL_DAYS`, and
   `JWT_ADMIN_TTL`.
 

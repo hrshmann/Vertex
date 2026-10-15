@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart, IChartApi, ISeriesApi, UTCTimestamp, ColorType } from "lightweight-charts";
 import { api, ApiRequestError } from "@/lib/api";
 import { useMarketSocket } from "@/lib/useMarketSocket";
+import { priceDecimals } from "@/lib/format";
 
 const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W", "1M"] as const;
 type Timeframe = (typeof TIMEFRAMES)[number];
@@ -86,6 +87,11 @@ export function ChartPanel({ symbol }: { symbol: string }) {
       .then((res) => {
         setSource({ provider: res.provider, isIndicative: res.isIndicative });
         const last = res.candles[res.candles.length - 1];
+        // The chart defaults to 2 decimals, which would round forex prices to e.g. 1.12.
+        const precision = priceDecimals(symbol, last?.close);
+        seriesRef.current?.applyOptions({
+          priceFormat: { type: "price", precision, minMove: 10 ** -precision },
+        });
         if (last) {
           lastBarRef.current = {
             time: (Date.parse(last.openTime) / 1000) as UTCTimestamp,

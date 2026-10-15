@@ -49,6 +49,11 @@ function ensureSocket() {
   socket.onerror = () => socket.close();
 }
 
+/** True while the shared socket is connected and delivering live events. */
+export function isMarketSocketOpen(): boolean {
+  return sharedSocket?.readyState === WebSocket.OPEN;
+}
+
 export function useMarketSocket(onEvent: Listener) {
   const handlerRef = useRef(onEvent);
   handlerRef.current = onEvent;

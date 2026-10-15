@@ -1,98 +1,71 @@
-import WebSocket from "ws";
 import { env } from "../../config/env";
-import { Quote } from "../../types";
+import { Instrument } from "../../types";
 import { listInstruments } from "./instrumentCache";
 import { upsertQuote } from "./quoteCache";
+import { ReconnectingSocket } from "./reconnectingSocket";
+
+export interface CryptoPrimaryFeed {
+  hasFreshQuote(symbol: string): boolean;
+  usdtUsdRate(): number | null;
+}
 
 /**
- * Live crypto market data from Binance's public 24hr-ticker WebSocket stream.
- * No API key required for public market data. Source: https://binance-docs.github.io/apidocs/spot/en/#individual-symbol-ticker-streams
+ * Fallback crypto feed: Binance's public 24hr-ticker WebSocket stream (no API key).
+ * Source: https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams
  *
- * This is real, executable-grade exchange data — distinct from the forex feed, which is
- * an indicative-only daily reference rate (see forexClient.ts).
+ * Binance quotes these markets in USDT, not USD (USDT trades slightly off $1), so prices are
+ * converted with the primary feed's live USDT-USD rate. A quote is only published while the
+ * primary feed (Coinbase, real USD books) has no current quote for that symbol, so the two
+ * sources never alternate on a healthy connection.
  */
 export class BinanceMarketDataClient {
-  private ws: WebSocket | null = null;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private reconnectDelayMs = 1000;
-  private readonly maxReconnectDelayMs = 30_000;
-  private stopped = false;
+  private socket: ReconnectingSocket | null = null;
+
+  constructor(private readonly primary: CryptoPrimaryFeed) {}
 
   start() {
-    const cryptoInstruments = listInstruments().filter((i) => i.provider === "binance");
-    if (cryptoInstruments.length === 0) {
+    const bySymbol = new Map<string, Instrument>();
+    for (const instrument of listInstruments()) {
+      if (instrument.provider === "binance") bySymbol.set(instrument.providerSymbol, instrument);
+    }
+    if (bySymbol.size === 0) {
       console.warn("[binance] no crypto instruments loaded — skipping connection");
       return;
     }
-    const streams = cryptoInstruments
-      .map((i) => `${i.providerSymbol.toLowerCase()}@ticker`)
-      .join("/");
-    this.connect(streams);
+    const streams = [...bySymbol.keys()].map((s) => `${s.toLowerCase()}@ticker`).join("/");
+    this.socket = new ReconnectingSocket("binance", `${env.binanceWsBase}/stream?streams=${streams}`, {
+      onMessage: (message) => {
+        const ticker = message.data;
+        if (ticker?.e !== "24hrTicker") return;
+        const instrument = bySymbol.get(ticker.s);
+        if (instrument) return this.handleTicker(instrument, ticker);
+      },
+    });
+    this.socket.start();
   }
 
   stop() {
-    this.stopped = true;
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
+    this.socket?.stop();
   }
 
-  private connect(streams: string) {
-    if (this.stopped) return;
-    const url = `${env.binanceWsBase}/stream?streams=${streams}`;
-    console.log(`[binance] connecting: ${url}`);
-    this.ws = new WebSocket(url);
+  private async handleTicker(instrument: Instrument, t: any) {
+    if (this.primary.hasFreshQuote(instrument.symbol)) return;
 
-    this.ws.on("open", () => {
-      console.log("[binance] connected");
-      this.reconnectDelayMs = 1000;
-    });
-
-    this.ws.on("message", (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString());
-        const payload = msg.data;
-        if (!payload || payload.e !== "24hrTicker") return;
-        // handleTicker is async; an unhandled rejection (e.g. a DB error) would crash the process.
-        this.handleTicker(payload).catch((err) => {
-          console.error("[binance] failed to handle ticker", err);
-        });
-      } catch (err) {
-        console.error("[binance] failed to parse message", err);
-      }
-    });
-
-    this.ws.on("close", () => {
-      if (this.stopped) return;
-      console.warn(`[binance] disconnected, reconnecting in ${this.reconnectDelayMs}ms`);
-      this.reconnectTimer = setTimeout(() => this.connect(streams), this.reconnectDelayMs);
-      this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, this.maxReconnectDelayMs);
-    });
-
-    this.ws.on("error", (err) => {
-      console.error("[binance] socket error", err.message);
-    });
-  }
-
-  private async handleTicker(t: any) {
-    const instrument = listInstruments().find(
-      (i) => i.provider === "binance" && i.providerSymbol === t.s
-    );
-    if (!instrument) return;
-
-    const quote: Quote = {
+    // Without a known rate (primary feed never connected), USDT is used at par.
+    const usd = this.primary.usdtUsdRate() ?? 1;
+    await upsertQuote({
       instrumentId: instrument.id,
       symbol: instrument.symbol,
-      bid: Number(t.b),
-      ask: Number(t.a),
-      last: Number(t.c),
-      high24h: Number(t.h),
-      low24h: Number(t.l),
+      bid: Number(t.b) * usd,
+      ask: Number(t.a) * usd,
+      last: Number(t.c) * usd,
+      high24h: Number(t.h) * usd,
+      low24h: Number(t.l) * usd,
       volume24h: Number(t.v),
       change24hPct: Number(t.P),
-      isIndicative: false, // real exchange best-bid/ask from Binance
+      isIndicative: false,
       source: "binance",
       sourceTs: new Date(t.E).toISOString(),
-    };
-    await upsertQuote(quote);
+    });
   }
 }

@@ -3,9 +3,16 @@ import { Quote } from "../../types";
 import { listInstruments } from "./instrumentCache";
 import { upsertQuote } from "./quoteCache";
 
+export interface ForexPrimaryFeed {
+  hasFreshQuote(symbol: string): boolean;
+}
+
 /**
- * Indicative forex rates from Frankfurter.app — free, keyless, ECB daily reference rates.
- * https://www.frankfurter.app (open-source, no API key, no signup).
+ * Fallback forex rates from Frankfurter — free, keyless, ECB daily reference rates.
+ * https://frankfurter.dev (open-source, no API key, no signup).
+ *
+ * Only used for pairs the primary live feed (Kraken, see krakenForexClient.ts) has no current
+ * quote for: pairs it doesn't list or quotes too thinly, or any pair while it is down.
  *
  * IMPORTANT — this is NOT real-time, executable market data:
  *  - ECB publishes reference rates once per business day (~16:00 CET), not streaming ticks.
@@ -39,6 +46,8 @@ const PAIRS: PairConfig[] = [
 export class ForexIndicativeClient {
   private timer: NodeJS.Timeout | null = null;
 
+  constructor(private readonly primary: ForexPrimaryFeed) {}
+
   start() {
     this.pollOnce();
     this.timer = setInterval(() => this.pollOnce(), env.forexPollIntervalMs);
@@ -57,6 +66,7 @@ export class ForexIndicativeClient {
       const body = (await res.json()) as { date: string; rates: Record<string, number> };
 
       for (const pair of PAIRS) {
+        if (this.primary.hasFreshQuote(pair.symbol)) continue;
         const instrument = listInstruments().find((i) => i.symbol === pair.symbol);
         if (!instrument) continue;
         const [base, quoteCcy] = pair.symbol.split("/");

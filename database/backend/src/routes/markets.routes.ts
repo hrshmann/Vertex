@@ -53,8 +53,8 @@ export function marketsRouter() {
       const timeframe = String(req.query.timeframe ?? "1H");
       const limit = parseLimit(req.query.limit, 300, 1000);
       try {
-        const candles = await getCandles(instrument, timeframe, limit);
-        res.json({ symbol, timeframe, provider: instrument.provider, isIndicative: instrument.provider === "frankfurter", candles });
+        const series = await getCandles(instrument, timeframe, limit);
+        res.json({ symbol, timeframe, provider: series.source, isIndicative: series.isIndicative, candles: series.candles });
       } catch (err) {
         if (err instanceof UnsupportedCandleRequest) throw new ApiError(400, err.message);
         throw err;

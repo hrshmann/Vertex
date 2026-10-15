@@ -6,6 +6,7 @@ import { api, ApiRequestError } from "@/lib/api";
 import { usePositions } from "@/lib/usePositions";
 import { useOrders } from "@/lib/useOrders";
 import { PriceFlash } from "@/components/PriceFlash";
+import { priceDecimals } from "@/lib/format";
 
 const TABS = ["Positions", "Orders", "History"] as const;
 
@@ -80,8 +81,8 @@ export function BottomPanel() {
                   <Td className="font-medium vx-tabular">{p.symbol}</Td>
                   <Td className={p.side === "BUY" ? "text-vx-buy" : "text-vx-sell"}>{p.side}</Td>
                   <Td align="right" className="vx-tabular">{p.volume}</Td>
-                  <Td align="right" className="vx-tabular">{p.entryPrice.toFixed(5)}</Td>
-                  <Td align="right"><PriceFlash value={p.currentPrice} decimals={5} /></Td>
+                  <Td align="right" className="vx-tabular">{p.entryPrice.toFixed(priceDecimals(p.symbol, p.entryPrice))}</Td>
+                  <Td align="right"><PriceFlash value={p.currentPrice} decimals={priceDecimals(p.symbol, p.entryPrice)} /></Td>
                   <Td align="right" className="vx-tabular vx-muted">{p.stopLoss ?? "—"}</Td>
                   <Td align="right" className="vx-tabular vx-muted">{p.takeProfit ?? "—"}</Td>
                   <Td align="right" className={clsx("vx-tabular font-medium", (p.unrealizedPnl ?? 0) >= 0 ? "text-vx-buy" : "text-vx-sell")}>

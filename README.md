@@ -21,36 +21,38 @@ docker-compose.yml
 
 ## Market data providers
 
-No market-data or broker API credentials were supplied, so this MVP uses two **free, keyless**
-sources and is explicit everywhere about what kind of data they are:
+No market-data or broker API credentials were supplied, so prices come from **free, keyless**
+public feeds. Each asset class has a primary feed and a fallback. The fallback publishes a symbol
+only while the primary has no current quote for it, so the two sources don't alternate on a
+healthy connection. The wiring is in `database/backend/src/services/marketData/feeds.ts`.
 
-- **Crypto — Binance public market data** (`database/backend/src/services/marketData/binanceClient.ts`).
-  Live best bid/ask, last price, 24h high/low/volume/change over Binance's public WebSocket
-  ticker stream. No API key needed. This is real, executable-grade exchange data
-  (`isExecutable: true`, `isIndicative: false` on every quote).
+| Asset class | Primary feed | Fallback feed |
+| --- | --- | --- |
+| Crypto | **Coinbase Exchange** `ticker` channel (`coinbaseClient.ts`). Real USD order books, updated on every trade with the best bid/ask. | **Binance** 24h ticker (`binanceClient.ts`). Quoted in USDT, converted to USD at Coinbase's live USDT-USD rate. |
+| Forex | **Kraken** v2 `ticker` channel (`krakenForexClient.ts`). Live traded fiat markets, updated on every top-of-book change. Quotes wider than 10 bps are rejected as illiquid. | **Frankfurter** (`forexClient.ts`). ECB daily reference rates with a small illustrative spread. |
 
-- **Forex — Frankfurter.app** (`database/backend/src/services/marketData/forexClient.ts`). Free, keyless,
-  ECB daily reference rates. There is no bid/ask or intraday movement in this feed — it's one
-  published rate per business day — so the client polls it and synthesizes a small illustrative
-  spread purely for display. Every forex quote is marked `isIndicative: true` end-to-end (API,
-  WebSocket events, UI), every forex instrument is seeded `is_executable: false`, and forex order
-  placement is accordingly not available (the order engine only fills executable instruments).
+What this means today:
 
-### Upgrading the forex feed to real-time
+- **Crypto** prices are real exchange data in real USD (`isIndicative: false`). Chart history
+  comes from Binance klines, scaled to USD at the live USDT-USD rate.
+- **Forex** quotes from Kraken are live but come from a crypto exchange's fiat markets, not
+  interbank or broker liquidity. EUR/USD, GBP/USD, USD/CHF, USD/CAD and AUD/USD are covered.
+  USD/JPY (too thin on Kraken) and NZD/USD (not listed) use the daily ECB rate. Live pairs also
+  get intraday candles from Kraken; daily-rate pairs only have `1D` candles.
+- Every forex quote stays `isIndicative: true` end-to-end (API, WebSocket events, UI). Every
+  forex instrument is seeded `is_executable: false`, so forex orders can't be placed: the order
+  engine only fills executable instruments.
 
-To get live, executable forex pricing, connect a real-time forex data or broker API. A free tier
-that fits with minimal changes: **[Twelve Data](https://twelvedata.com/)** (free API key, REST +
-WebSocket, covers forex). Steps:
+### Upgrading forex to broker-grade prices
 
-1. Sign up for a free API key at twelvedata.com.
-2. Replace the contents of `forexClient.ts` with a client against Twelve Data's `/price` or
-   WebSocket quote endpoint, using the key via an env var (add `TWELVE_DATA_API_KEY` to
-   `database/backend/.env`).
-3. Set `is_executable = true` and update `provider`/`provider_symbol` on the forex rows in
-   `instruments` (see `database/migrations/002_seed_instruments.sql`) once you're actually ready
-   to let users place forex orders against that feed.
-4. The rest of the system (quote cache, WS broadcast, chart, order panel, demo engine) needs no
-   changes — they're all written against the `Quote`/`Instrument` abstractions, not the provider.
+For interbank or broker pricing on all pairs (including USD/JPY and NZD/USD), connect a forex data
+or broker API with a key. For example, an OANDA practice (demo) account gives streaming bid/ask
+for all majors, and [Twelve Data](https://twelvedata.com/) has a free tier. Add a client next to
+`krakenForexClient.ts`, read the key from an env var, and make it the forex primary in
+`feeds.ts`. Set `is_executable = true` on the forex rows in `instruments` only when you're ready
+to let users trade against that feed. The quote cache, WebSocket broadcast, chart, order panel
+and demo engine need no changes. They're written against the `Quote`/`Instrument`
+abstractions, not the provider.
 
 ## Order execution — demo only
 
@@ -129,8 +131,8 @@ Deliberately out of scope for this MVP pass (flagged rather than faked):
   `database/migrations/003_seed_compliance.sql`).
 - **Admin UI for `api_connections`** — the table (encrypted-at-rest via
   `database/backend/src/utils/crypto.ts`) and schema exist for admin-configured exchange/broker API keys,
-  but there's no admin screen to manage them yet, since the current feeds (Binance, Frankfurter)
-  are public and keyless.
+  but there's no admin screen to manage them yet, since the current feeds (Coinbase, Binance,
+  Kraken, Frankfurter) are public and keyless.
 
 ## Known dev-dependency advisory
 

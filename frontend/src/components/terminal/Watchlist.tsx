@@ -1,6 +1,7 @@
 "use client";
 
 import { useMarkets } from "@/lib/useMarkets";
+import { priceDecimals } from "@/lib/format";
 import { PriceFlash } from "@/components/PriceFlash";
 import clsx from "clsx";
 
@@ -15,7 +16,7 @@ export function Watchlist({ selected, onSelect }: { selected: string; onSelect: 
       <div className="flex-1 overflow-y-auto">
         {rows.map((r) => {
           const q = r.quote;
-          const decimals = r.class === "FOREX" ? 5 : 2;
+          const decimals = priceDecimals(r.symbol, q?.last);
           const up = (q?.change24hPct ?? 0) >= 0;
           return (
             <button

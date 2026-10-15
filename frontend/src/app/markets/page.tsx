@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMarkets } from "@/lib/useMarkets";
 import { PriceFlash } from "@/components/PriceFlash";
+import { priceDecimals } from "@/lib/format";
 
 export default function MarketsPage() {
   const { rows, loading, error } = useMarkets();
@@ -61,7 +62,7 @@ export default function MarketsPage() {
             )}
             {filtered.map((r) => {
               const q = r.quote;
-              const decimals = r.class === "FOREX" ? 5 : 2;
+              const decimals = priceDecimals(r.symbol, q?.last);
               const up = (q?.change24hPct ?? 0) >= 0;
               return (
                 <tr key={r.symbol} className="hover:bg-[rgb(var(--surface-2))]/40 transition-colors">

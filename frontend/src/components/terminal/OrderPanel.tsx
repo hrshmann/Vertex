@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { api, ApiRequestError } from "@/lib/api";
 import { Account, MarketRow, OrderSide, OrderType } from "@/lib/types";
 import { ConfirmOrderDialog, PendingOrder } from "./ConfirmOrderDialog";
+import { priceDecimals } from "@/lib/format";
 
 const ORDER_TYPES: OrderType[] = ["MARKET", "LIMIT", "STOP", "STOP_LIMIT"];
 
@@ -33,7 +34,7 @@ export function OrderPanel({
   }
 
   const q = instrument.quote;
-  const decimals = instrument.class === "FOREX" ? 5 : 2;
+  const decimals = priceDecimals(instrument.symbol, q?.last);
   const canTrade = instrument.isExecutable && instrument.tradingEnabled;
   const vol = Number(volume) || 0;
   const refPrice = q ? (side === "BUY" ? q.ask : q.bid) : null;
@@ -76,6 +77,7 @@ export function OrderPanel({
       estimatedMargin: estMargin,
       estimatedSpread: spread ?? 0,
       estimatedFees: 0,
+      priceDecimals: decimals,
     });
   }
 

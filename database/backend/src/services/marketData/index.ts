@@ -1,6 +1,5 @@
 import { loadInstrumentCache } from "./instrumentCache";
-import { BinanceMarketDataClient } from "./binanceClient";
-import { ForexIndicativeClient } from "./forexClient";
+import { binanceFeed, coinbaseFeed, ecbFeed, krakenFeed } from "./feeds";
 import { onQuoteUpdate } from "./quoteCache";
 import { WsHub } from "../ws/wsHub";
 import { DemoTradingEngine } from "../trading/demoEngine";
@@ -9,7 +8,7 @@ import { DemoTradingEngine } from "../trading/demoEngine";
 // skipped ticks are not lost; this only bounds DB load and prevents overlapping runs.
 const ENGINE_TICK_INTERVAL_MS = 2_000;
 
-/** Boots instrument cache + both market-data feeds, and wires ticks into the WS hub and demo engine. */
+/** Boots instrument cache + all market-data feeds, and wires ticks into the WS hub and demo engine. */
 export async function startMarketData(hub: WsHub, engine: DemoTradingEngine) {
   await loadInstrumentCache();
 
@@ -36,11 +35,12 @@ export async function startMarketData(hub: WsHub, engine: DemoTradingEngine) {
       });
   });
 
-  const binance = new BinanceMarketDataClient();
-  binance.start();
+  const feeds = [coinbaseFeed, binanceFeed, krakenFeed, ecbFeed];
+  for (const feed of feeds) feed.start();
 
-  const forex = new ForexIndicativeClient();
-  forex.start();
-
-  return { binance, forex };
+  return {
+    stop() {
+      for (const feed of feeds) feed.stop();
+    },
+  };
 }

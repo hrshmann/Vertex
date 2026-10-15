@@ -77,8 +77,7 @@ async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[vertex-trading-backend] received ${signal}; shutting down`);
-    marketData.binance.stop();
-    marketData.forex.stop();
+    marketData.stop();
     hub.close();
     server.close((error) => {
       if (error) {

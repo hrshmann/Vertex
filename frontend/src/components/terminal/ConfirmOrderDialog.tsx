@@ -13,6 +13,7 @@ export interface PendingOrder {
   estimatedMargin: number;
   estimatedSpread: number;
   estimatedFees: number;
+  priceDecimals: number;
 }
 
 export function ConfirmOrderDialog({
@@ -40,10 +41,10 @@ export function ConfirmOrderDialog({
           />
           <Row label="Volume" value={String(order.volume)} />
           <Row label="Entry" value={order.entryLabel} />
-          {order.stopLoss != null && <Row label="Stop Loss" value={order.stopLoss.toFixed(5)} />}
-          {order.takeProfit != null && <Row label="Take Profit" value={order.takeProfit.toFixed(5)} />}
+          {order.stopLoss != null && <Row label="Stop Loss" value={order.stopLoss.toFixed(order.priceDecimals)} />}
+          {order.takeProfit != null && <Row label="Take Profit" value={order.takeProfit.toFixed(order.priceDecimals)} />}
           <div className="h-px bg-[rgb(var(--border))] my-2" />
-          <Row label="Est. spread" value={order.estimatedSpread.toFixed(5)} muted />
+          <Row label="Est. spread" value={order.estimatedSpread.toFixed(order.priceDecimals)} muted />
           <Row label="Est. required margin" value={`$${order.estimatedMargin.toFixed(2)}`} muted />
           <Row label="Est. fees" value={`$${order.estimatedFees.toFixed(2)}`} muted />
         </div>

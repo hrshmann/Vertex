@@ -105,9 +105,14 @@ export const env = {
   // Binance public market endpoints need no key for ticker/kline data.
   binanceWsBase: process.env.BINANCE_WS_BASE ?? "wss://stream.binance.com:9443",
   binanceRestBase: process.env.BINANCE_REST_BASE ?? "https://api.binance.com",
-  // Frankfurter.app — free, keyless, ECB reference rates. Daily, NOT real-time: used only
-  // as an indicative forex feed until a real-time forex data/broker API key is supplied.
-  forexIndicativeBase: process.env.FOREX_INDICATIVE_BASE ?? "https://api.frankfurter.app",
+  // Coinbase Exchange public feed — primary crypto quotes in real USD, no key required.
+  coinbaseWsBase: process.env.COINBASE_WS_BASE ?? "wss://ws-feed.exchange.coinbase.com",
+  // Kraken public API — primary live forex quotes and intraday forex candles, no key required.
+  krakenWsBase: process.env.KRAKEN_WS_BASE ?? "wss://ws.kraken.com/v2",
+  krakenRestBase: process.env.KRAKEN_REST_BASE ?? "https://api.kraken.com",
+  // Frankfurter — free, keyless, ECB reference rates. Daily, NOT real-time: forex fallback for
+  // pairs the live feed doesn't cover (api.frankfurter.app now redirects here).
+  forexIndicativeBase: process.env.FOREX_INDICATIVE_BASE ?? "https://api.frankfurter.dev/v1",
   forexPollIntervalMs: Number(process.env.FOREX_POLL_INTERVAL_MS ?? 60_000),
 
   isProd(): boolean {

@@ -56,7 +56,7 @@ export default function AdminUsersPage() {
           <tbody className="divide-y divide-[rgb(var(--border))]">
             {users.map((u) => (
               <tr key={u.id}>
-                <td className="px-4 py-2">{u.first_name} {u.last_name}</td>
+                <td className="px-4 py-2"><Link href={`/admin/users/${u.id}`} className="hover:text-vx-accent hover:underline">{u.first_name} {u.last_name}</Link></td>
                 <td className="px-4 py-2 vx-muted">{u.email}</td>
                 <td className="px-4 py-2">
                   {u.is_suspended ? <span className="text-vx-sell">Suspended</span> : <span className="text-vx-buy">Active</span>}

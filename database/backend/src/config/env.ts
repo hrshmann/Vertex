@@ -101,6 +101,20 @@ export const env = {
   corsOrigins,
   trustProxyHops,
 
+  // Public address of the website, used in links inside emails.
+  appUrl: (process.env.APP_URL ?? corsOrigins[0]).replace(/\/+$/, ""),
+
+  // Outgoing email (Hostinger: smtp.hostinger.com, port 465, a mailbox on your domain).
+  // Sending is off until SMTP_USER and SMTP_PASS are set; admins can still open drafts in their mail app.
+  smtp: {
+    host: process.env.SMTP_HOST || "smtp.hostinger.com",
+    port: Number(process.env.SMTP_PORT ?? 465),
+    user: process.env.SMTP_USER ?? "",
+    pass: process.env.SMTP_PASS ?? "",
+  },
+  mailFrom: process.env.MAIL_FROM ?? "",
+  mailFromName: process.env.MAIL_FROM_NAME ?? "Vertex Trading",
+
   // Market data — see the repository README for provider notes.
   // Binance public market endpoints need no key for ticker/kline data.
   binanceWsBase: process.env.BINANCE_WS_BASE ?? "wss://stream.binance.com:9443",

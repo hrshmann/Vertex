@@ -88,9 +88,9 @@ export default function AdminKycQueuePage() {
                 {data.items.map((item) => (
                   <tr key={item.user_id} className="border-b border-line last:border-0">
                     <td className="px-5 py-3">
-                      <p className="font-medium">
+                      <Link href={`/admin/kyc/${item.user_id}`} className="font-medium hover:text-accent hover:underline">
                         {item.first_name} {item.last_name}
-                      </p>
+                      </Link>
                       <p className="text-xs text-muted">{item.email}</p>
                     </td>
                     <td className="px-3 py-3 text-muted">{item.country ?? "—"}</td>

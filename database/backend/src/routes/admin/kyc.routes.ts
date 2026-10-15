@@ -7,6 +7,9 @@ import { ApiError } from "../../middleware/errorHandler";
 import { logAudit } from "../../utils/audit";
 import { decryptBuffer } from "../../utils/crypto";
 import { evaluateRequirements } from "../../services/kyc/kycRules";
+import { isMailConfigured } from "../../services/mail/mailer";
+import { kycDecisionEmail } from "../../services/mail/templates";
+import { env } from "../../config/env";
 
 const STATUSES = ["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"] as const;
 
@@ -54,11 +57,36 @@ export function adminKycRouter() {
          FROM kyc_documents WHERE kyc_profile_id = ? ORDER BY document_type, side`,
         [profile.rows[0].id]
       );
+      const emails = await query(
+        `SELECT kind, to_address, subject, status, error, created_at FROM email_log
+         WHERE user_id = ? ORDER BY created_at DESC LIMIT 10`,
+        [req.params.userId]
+      );
       res.json({
         ...profile.rows[0],
         documents: docs.rows.map((d) => ({ ...d, has_file: Boolean(Number(d.has_file)) })),
         requirements: evaluateRequirements(docs.rows),
+        emails: emails.rows,
+        mailConfigured: isMailConfigured(),
       });
+    })
+  );
+
+  // The prewritten email for a decision, for the admin to check and edit before sending.
+  router.get(
+    "/:userId/email-draft",
+    asyncHandler(async (req, res) => {
+      const decision = z.enum(["APPROVED", "ADDITIONAL_INFORMATION_REQUIRED", "REJECTED"]).parse(req.query.decision);
+      const reason = z.string().max(500).optional().parse(req.query.reason ?? undefined);
+      const user = await query(`SELECT first_name, email FROM users WHERE id = ?`, [req.params.userId]);
+      if (!user.rows[0]) throw new ApiError(404, "User not found");
+      const draft = kycDecisionEmail(decision, {
+        firstName: user.rows[0].first_name,
+        email: user.rows[0].email,
+        appUrl: env.appUrl,
+        reason,
+      });
+      res.json({ to: user.rows[0].email, ...draft, mailConfigured: isMailConfigured() });
     })
   );
 

@@ -13,6 +13,11 @@ import { DbConnection, withTransaction } from "../db/pool";
 import { env } from "../config/env";
 import { isDuplicateKeyError } from "../utils/dbErrors";
 import crypto from "node:crypto";
+import { isMailConfigured } from "../services/mail/mailer";
+import { sendClientMail } from "../services/mail/clientMail";
+import { passwordResetEmail, welcomeEmail } from "../services/mail/templates";
+
+const RESET_TTL_MINUTES = 30;
 
 export function authRouter(demoEngine: DemoTradingEngine) {
   const router = Router();
@@ -69,6 +74,15 @@ export function authRouter(demoEngine: DemoTradingEngine) {
       const user = { id: userId, email: body.email };
 
       await logAudit({ actorType: "user", actorId: user.id, action: "REGISTERED", ipAddress: req.ip });
+      if (isMailConfigured()) {
+        // In the background, so a slow mail server doesn't hold up sign-up.
+        void sendClientMail({
+          to: body.email,
+          ...welcomeEmail(body.firstName, body.email, env.appUrl),
+          userId: user.id,
+          kind: "WELCOME",
+        });
+      }
 
       await issueSessionCookies(res, user.id, user.email);
       res.status(201).json({ id: user.id, email: user.email });
@@ -198,21 +212,85 @@ export function authRouter(demoEngine: DemoTradingEngine) {
     })
   );
 
-  const forgotSchema = z.object({ email: z.string().email() });
+  const forgotSchema = z.object({ email: z.string().trim().email() });
   router.post(
     "/forgot-password",
     authRateLimiter,
     asyncHandler(async (req, res) => {
       const { email } = forgotSchema.parse(req.body);
-      const result = await query("SELECT id FROM users WHERE email = ?", [email]);
-      if (result.rows[0]) {
-        await logAudit({ actorType: "user", actorId: result.rows[0].id, action: "PASSWORD_RESET_REQUESTED" });
+      if (!isMailConfigured()) {
+        res.json({ ok: true, emailAvailable: false });
+        return;
       }
-      // Always respond the same way, regardless of whether the email exists.
-      res.json({
-        ok: true,
-        message: "If that email exists, password reset instructions are unavailable until email delivery is configured.",
+      const result = await query(
+        `SELECT id, first_name, email FROM users WHERE email = ? AND is_active = TRUE AND is_suspended = FALSE`,
+        [email]
+      );
+      const user = result.rows[0];
+      if (user) {
+        // At most 3 links per hour per account, so the form can't be used to flood an inbox.
+        const recent = await query(
+          `SELECT COUNT(*) AS n FROM password_reset_tokens WHERE user_id = ? AND created_at > UTC_TIMESTAMP(6) - INTERVAL 1 HOUR`,
+          [user.id]
+        );
+        if (Number(recent.rows[0].n) < 3) {
+          const token = crypto.randomBytes(32).toString("base64url");
+          await query(
+            `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+             VALUES (?, ?, UTC_TIMESTAMP(6) + INTERVAL ? MINUTE)`,
+            [user.id, sha256(token), RESET_TTL_MINUTES]
+          );
+          const draft = passwordResetEmail(user.first_name, `${env.appUrl}/reset-password?token=${token}`, RESET_TTL_MINUTES);
+          await sendClientMail({ to: user.email, ...draft, userId: user.id, kind: "PASSWORD_RESET" });
+          await logAudit({ actorType: "user", actorId: user.id, action: "PASSWORD_RESET_REQUESTED", ipAddress: req.ip });
+        }
+      }
+      // Same response whether or not the account exists, so emails can't be enumerated.
+      res.json({ ok: true, emailAvailable: true });
+    })
+  );
+
+  const resetSchema = z.object({ token: z.string().min(20).max(200), password: z.string().min(10) });
+  router.post(
+    "/reset-password",
+    authRateLimiter,
+    asyncHandler(async (req, res) => {
+      const body = resetSchema.parse(req.body);
+      if (!isPasswordStrongEnough(body.password)) {
+        throw new ApiError(400, "Use at least 10 characters, with upper and lower case letters and a number.");
+      }
+      const passwordHash = await hashPassword(body.password);
+      const userId = await withTransaction(async (client) => {
+        const found = await client.query<{ id: string; user_id: string }>(
+          `SELECT id, user_id FROM password_reset_tokens
+           WHERE token_hash = ? AND used_at IS NULL AND expires_at > UTC_TIMESTAMP(6) FOR UPDATE`,
+          [sha256(body.token)]
+        );
+        const row = found.rows[0];
+        if (!row) return null;
+        // Using one link cancels any others, and every session is signed out.
+        await client.query(
+          `UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP(6) WHERE user_id = ? AND used_at IS NULL`,
+          [row.user_id]
+        );
+        await client.query(
+          `UPDATE users SET password_hash = ?, failed_login_count = 0, locked_until = NULL, updated_at = now() WHERE id = ?`,
+          [passwordHash, row.user_id]
+        );
+        await client.query(
+          `UPDATE user_sessions SET revoked_at = UTC_TIMESTAMP(6) WHERE user_id = ? AND revoked_at IS NULL`,
+          [row.user_id]
+        );
+        return row.user_id;
       });
+      if (!userId) throw new ApiError(400, "This reset link has expired or was already used. Request a new one.");
+
+      await logAudit({ actorType: "user", actorId: userId, action: "PASSWORD_RESET", ipAddress: req.ip });
+      await query(
+        `INSERT INTO notifications (user_id, type, title, body) VALUES (?,'SECURITY_ALERT','Password reset',?)`,
+        [userId, "Your password was reset with an email link and your devices were signed out. If this wasn't you, contact support."]
+      );
+      res.json({ ok: true });
     })
   );
 
@@ -320,7 +398,11 @@ async function insertRefreshSession(
 }
 
 function hashRefreshToken(token: string) {
-  return crypto.createHash("sha256").update(token).digest("hex");
+  return sha256(token);
+}
+
+function sha256(value: string) {
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function setSessionCookies(

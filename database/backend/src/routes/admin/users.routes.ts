@@ -7,6 +7,7 @@ import { ApiError } from "../../middleware/errorHandler";
 import { logAudit } from "../../utils/audit";
 import { parseLimit } from "../../utils/pagination";
 import { evaluateRequirements } from "../../services/kyc/kycRules";
+import { sendClientMail } from "../../services/mail/clientMail";
 
 export function adminUsersRouter() {
   const router = Router();
@@ -95,6 +96,14 @@ export function adminUsersRouter() {
     .object({
       status: z.enum(["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"]),
       rejectionReason: z.string().trim().max(500).optional(),
+      // The email the admin reviewed (prewritten, possibly edited); omitted = don't email.
+      email: z
+        .object({
+          to: z.string().trim().email("Enter a valid email address for the client."),
+          subject: z.string().trim().min(1).max(200),
+          text: z.string().trim().min(1).max(10_000),
+        })
+        .optional(),
     })
     .refine(
       (b) => !["REJECTED", "ADDITIONAL_INFORMATION_REQUIRED"].includes(b.status) || !!b.rejectionReason,
@@ -145,7 +154,27 @@ export function adminUsersRouter() {
         targetId: result.rows[0].id,
         metadata: { status: body.status },
       });
-      res.json(result.rows[0]);
+
+      // Sent after the decision is saved; a mail failure is reported but doesn't undo it.
+      const email = body.email
+        ? await sendClientMail({
+            ...body.email,
+            userId: req.params.id,
+            kind: `KYC_${body.status}`,
+            adminId: req.admin!.id,
+          })
+        : null;
+      if (email) {
+        await logAudit({
+          actorType: "admin",
+          actorId: req.admin!.id,
+          action: email.sent ? "CLIENT_EMAIL_SENT" : "CLIENT_EMAIL_FAILED",
+          targetType: "user",
+          targetId: req.params.id,
+          metadata: { kind: `KYC_${body.status}`, to: body.email!.to },
+        });
+      }
+      res.json({ ...result.rows[0], email });
     })
   );
 

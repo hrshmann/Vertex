@@ -1,21 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
 import { api, ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
-
-const RULES = [
-  { label: "10 or more characters", test: (p: string) => p.length >= 10 },
-  { label: "Upper and lower case letters", test: (p: string) => /[a-z]/.test(p) && /[A-Z]/.test(p) },
-  { label: "A number", test: (p: string) => /\d/.test(p) },
-];
+import { isStrongPassword, PasswordRules } from "@/components/ui/PasswordRules";
 
 function guessCountry() {
   try {
@@ -42,7 +35,7 @@ export default function RegisterPage() {
     if (!authLoading && user) router.replace("/dashboard");
   }, [authLoading, user, router]);
 
-  const strong = RULES.every((r) => r.test(form.password));
+  const strong = isStrongPassword(form.password);
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [key]: e.target.value });
 
@@ -102,18 +95,7 @@ export default function RegisterPage() {
             value={form.password}
             onChange={set("password")}
           />
-          <ul className="mt-2 space-y-1" aria-label="Password requirements">
-            {RULES.map((r) => {
-              const ok = r.test(form.password);
-              return (
-                <li key={r.label} className={clsx("flex items-center gap-2 text-2xs", ok ? "text-buy" : "text-muted")}>
-                  <Check className={clsx("h-3.5 w-3.5", ok ? "opacity-100" : "opacity-30")} strokeWidth={3} aria-hidden />
-                  {r.label}
-                  <span className="sr-only">{ok ? "(met)" : "(not met)"}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <PasswordRules password={form.password} />
         </div>
 
         <label className="flex items-start gap-2.5 text-xs text-muted">

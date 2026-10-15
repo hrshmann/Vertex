@@ -1,20 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import clsx from "clsx";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, Circle, ExternalLink, FileText } from "lucide-react";
-import { api, ApiRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { API_BASE } from "@/lib/config";
 import { formatDateTime } from "@/lib/format";
-import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/Badge";
 import { PageTitle, Panel } from "@/components/ui/Panel";
 import { Skeleton } from "@/components/ui/States";
 import { useToast } from "@/components/ui/Toast";
 import { formatBytes } from "@/components/portal/UploadSlot";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { Decision, KycDecisionPanel } from "@/components/admin/KycDecisionPanel";
 
 interface ReviewDocument {
   id: string;
@@ -41,6 +40,7 @@ interface Review {
   user_created_at: string;
   documents: ReviewDocument[];
   requirements: { identity: boolean; proofOfAddress: boolean; selfie: boolean; complete: boolean };
+  emails: { kind: string; to_address: string; subject: string; status: "SENT" | "FAILED"; error: string | null; created_at: string }[];
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -51,16 +51,12 @@ const DOC_LABELS: Record<string, string> = {
   SELFIE: "Selfie with ID",
 };
 
-type Decision = "APPROVED" | "ADDITIONAL_INFORMATION_REQUIRED" | "REJECTED";
-
 export default function AdminKycReviewPage() {
   const { userId } = useParams<{ userId: string }>();
   const router = useRouter();
   const toast = useToast();
   const { admin } = useAdminAuth();
   const [review, setReview] = useState<Review | null>(null);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canDecide = admin?.role === "SUPER_ADMIN" || admin?.role === "COMPLIANCE";
 
@@ -69,21 +65,11 @@ export default function AdminKycReviewPage() {
   }, [userId]);
   useEffect(load, [load]);
 
-  async function decide(status: Decision) {
-    if (status !== "APPROVED" && !reason.trim()) {
-      setError("Write the reason the client will see, so they know what to fix.");
-      return;
-    }
-    setBusy(status);
-    setError(null);
-    try {
-      await api.post(`/api/admin/users/${userId}/kyc`, { status, rejectionReason: status === "APPROVED" ? undefined : reason.trim() });
-      toast(status === "APPROVED" ? "Client verified" : status === "REJECTED" ? "Verification declined" : "Asked the client for more information");
-      router.push("/admin/kyc");
-    } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "The decision wasn't saved. Try again.");
-      setBusy(null);
-    }
+  function onDecided(decision: Decision, email: { sent: boolean } | null) {
+    const saved =
+      decision === "APPROVED" ? "Client verified" : decision === "REJECTED" ? "Verification declined" : "Asked the client for more information";
+    toast(email === null ? saved : email.sent ? `${saved}. Email sent.` : `${saved}. Finish sending the email in your mail app.`);
+    router.push("/admin/kyc");
   }
 
   if (!review) {
@@ -112,8 +98,8 @@ export default function AdminKycReviewPage() {
         actions={<StatusBadge status={review.status} />}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid min-w-0 content-start items-start gap-4 sm:grid-cols-2">
           {review.documents.length === 0 && <p className="text-sm text-muted">No documents uploaded.</p>}
           {review.documents.map((doc) => {
             const url = `${API_BASE}/api/admin/kyc/documents/${doc.id}/file`;
@@ -174,37 +160,26 @@ export default function AdminKycReviewPage() {
               {review.reviewed_at ? `. Last decision ${formatDateTime(review.reviewed_at)}.` : "."}
             </p>
             {review.rejection_reason && <p className="mt-2 text-xs text-muted">Last reason given: {review.rejection_reason}</p>}
+            {review.emails.length > 0 && (
+              <div className="mt-4 border-t border-line pt-3">
+                <p className="text-xs font-medium">Emails to this client</p>
+                <ul className="mt-2 space-y-2">
+                  {review.emails.map((m, i) => (
+                    <li key={i} className="text-2xs">
+                      <p className="truncate text-ink">{m.subject}</p>
+                      <p className={m.status === "SENT" ? "text-muted" : "text-sell"}>
+                        {m.status === "SENT" ? "Sent" : "Not sent"} to {m.to_address}, {formatDateTime(m.created_at)}
+                        {m.status === "FAILED" && m.error ? `. ${m.error}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Panel>
 
           {canDecide ? (
-            <Panel title="Decision">
-              <label htmlFor="reason" className="text-xs font-medium">
-                Reason for the client
-              </label>
-              <textarea
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder="For example: The proof of address is older than 3 months."
-                className="mt-1.5 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-              />
-              <p className="mt-1 text-2xs text-muted">Needed when asking for more or declining. The client sees it.</p>
-              {error && <p className="mt-2 text-xs text-sell">{error}</p>}
-              <div className="mt-4 grid gap-2">
-                <Button variant="buy" loading={busy === "APPROVED"} disabled={!!busy || !review.requirements.complete} onClick={() => void decide("APPROVED")}>
-                  Approve
-                </Button>
-                <Button variant="secondary" loading={busy === "ADDITIONAL_INFORMATION_REQUIRED"} disabled={!!busy} onClick={() => void decide("ADDITIONAL_INFORMATION_REQUIRED")}>
-                  Request more information
-                </Button>
-                <Button variant="ghost" className={clsx("text-sell hover:bg-sell-soft hover:text-sell")} loading={busy === "REJECTED"} disabled={!!busy} onClick={() => void decide("REJECTED")}>
-                  Decline
-                </Button>
-              </div>
-              {!review.requirements.complete && <p className="mt-2 text-2xs text-muted">Approval needs all three documents.</p>}
-            </Panel>
+            <KycDecisionPanel userId={userId} clientEmail={review.email} canApprove={review.requirements.complete} onDecided={onDecided} />
           ) : (
             <p className="text-xs text-muted">Only compliance staff can make verification decisions.</p>
           )}

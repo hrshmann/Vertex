@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   verifyRefreshToken: vi.fn(),
   logAudit: vi.fn(),
   ensureDemoAccount: vi.fn(),
+  isMailConfigured: vi.fn(),
+  sendClientMail: vi.fn(),
 }));
 
 vi.mock("./mariaDbQuery", () => ({ query: mocks.query }));
@@ -37,6 +39,8 @@ vi.mock("../utils/jwt", () => ({
   verifyRefreshToken: mocks.verifyRefreshToken,
 }));
 vi.mock("../utils/audit", () => ({ logAudit: mocks.logAudit }));
+vi.mock("../services/mail/mailer", () => ({ isMailConfigured: mocks.isMailConfigured }));
+vi.mock("../services/mail/clientMail", () => ({ sendClientMail: mocks.sendClientMail }));
 
 import { requireAuth } from "../middleware/auth";
 import { errorHandler } from "../middleware/errorHandler";
@@ -247,26 +251,86 @@ describe("auth routes with mocked persistence", () => {
     expect(mocks.sessions.has("logout-session")).toBe(false);
   });
 
-  it("does not write password-reset tokens to application logs", async () => {
+  it("says so when email isn't set up, without creating a reset link", async () => {
+    mocks.isMailConfigured.mockReturnValue(false);
+    const response = await post("/api/auth/forgot-password", { email: user.email });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, emailAvailable: false });
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.sendClientMail).not.toHaveBeenCalled();
+  });
+
+  it("emails a one-time reset link and stores only its hash", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    mocks.query.mockResolvedValueOnce({
-      rows: [{ id: user.id }],
-      rowCount: 1,
-      insertId: 0,
-    });
-    const response = await fetch(`${baseUrl}/api/auth/forgot-password`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: user.email }),
+    mocks.isMailConfigured.mockReturnValue(true);
+    mocks.sendClientMail.mockResolvedValue({ sent: true, messageId: "m1" });
+    const inserted: unknown[][] = [];
+    mocks.query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes("FROM users WHERE email")) return { rows: [{ id: user.id, first_name: "Sam", email: user.email }] };
+      if (sql.includes("COUNT(*) AS n")) return { rows: [{ n: 0 }] };
+      if (sql.includes("INSERT INTO password_reset_tokens")) inserted.push(params);
+      return { rows: [], rowCount: 1, insertId: 0 };
     });
 
+    const response = await post("/api/auth/forgot-password", { email: user.email });
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      ok: true,
-      message: expect.stringContaining("email delivery is configured"),
-    });
-    expect(mocks.logAudit).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual({ ok: true, emailAvailable: true });
+
+    const mail = mocks.sendClientMail.mock.calls[0][0];
+    expect(mail.to).toBe(user.email);
+    const token = /reset-password\?token=([\w-]+)/.exec(mail.text)?.[1];
+    expect(token).toBeTruthy();
+    expect(inserted[0][1]).toBe(createHash("sha256").update(token!).digest("hex"));
+    expect(JSON.stringify(inserted)).not.toContain(token);
     expect(logSpy).not.toHaveBeenCalled();
     logSpy.mockRestore();
   });
+
+  it("answers the same for an unknown email and sends nothing", async () => {
+    mocks.isMailConfigured.mockReturnValue(true);
+    mocks.query.mockResolvedValue({ rows: [] });
+    const response = await post("/api/auth/forgot-password", { email: "nobody@example.invalid" });
+    expect(await response.json()).toEqual({ ok: true, emailAvailable: true });
+    expect(mocks.sendClientMail).not.toHaveBeenCalled();
+  });
+
+  it("stops sending reset links after three in an hour", async () => {
+    mocks.isMailConfigured.mockReturnValue(true);
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM users WHERE email")) return { rows: [{ id: user.id, first_name: "Sam", email: user.email }] };
+      if (sql.includes("COUNT(*) AS n")) return { rows: [{ n: 3 }] };
+      return { rows: [] };
+    });
+    await post("/api/auth/forgot-password", { email: user.email });
+    expect(mocks.sendClientMail).not.toHaveBeenCalled();
+  });
+
+  it("resets the password with a valid link and signs out every session", async () => {
+    const statements: string[] = [];
+    mocks.query.mockImplementation(async (sql: string) => {
+      statements.push(sql);
+      if (sql.includes("FROM password_reset_tokens")) return { rows: [{ id: "t1", user_id: user.id }] };
+      return { rows: [], rowCount: 1 };
+    });
+    const response = await post("/api/auth/reset-password", { token: "a".repeat(43), password: "NewPassword123" });
+    expect(response.status).toBe(200);
+    expect(statements.some((q) => q.includes("UPDATE users SET password_hash"))).toBe(true);
+    expect(statements.some((q) => q.includes("UPDATE user_sessions SET revoked_at"))).toBe(true);
+    expect(statements.some((q) => q.includes("UPDATE password_reset_tokens SET used_at"))).toBe(true);
+  });
+
+  it("refuses an expired or used reset link", async () => {
+    mocks.query.mockResolvedValue({ rows: [] });
+    const response = await post("/api/auth/reset-password", { token: "b".repeat(43), password: "NewPassword123" });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("expired or was already used");
+  });
+
+  function post(path: string, body: unknown) {
+    return fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
 });

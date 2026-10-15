@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { api, ApiRequestError } from "@/lib/api";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/Field";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -22,48 +25,36 @@ export default function AdminLoginPage() {
       await refresh();
       router.push("/admin");
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Login failed");
-    } finally {
+      setError(err instanceof ApiRequestError ? err.message : "Couldn't log in. Check your connection and try again.");
       setLoading(false);
     }
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-[rgb(var(--bg))]">
-      <form onSubmit={onSubmit} className="w-full max-w-sm vx-surface rounded-2xl p-7">
-        <h1 className="text-lg font-semibold mb-1">Vertex Admin</h1>
-        <p className="vx-muted text-sm mb-6">Sign in to the admin panel.</p>
-        <div className="space-y-3">
-          <input
-            type="email"
-            required
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg vx-surface-2 border border-[rgb(var(--border))] px-3 py-2 text-sm outline-none focus:border-vx-accent"
-          />
-          <input
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-panel border border-line bg-surface p-7">
+        <ShieldCheck className="h-7 w-7 text-accent" aria-hidden />
+        <h1 className="mt-4 text-lg font-semibold">Vertex staff log in</h1>
+        <p className="mt-1 text-sm text-muted">For the Vertex Trading team only.</p>
+        <div className="mt-6 space-y-4">
+          <TextField label="Email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField
+            label="Password"
             type="password"
             required
-            placeholder="Password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg vx-surface-2 border border-[rgb(var(--border))] px-3 py-2 text-sm outline-none focus:border-vx-accent"
           />
         </div>
-        {error && <div className="mt-3 text-sm text-vx-sell">{error}</div>}
-        <button
-          disabled={loading}
-          className="mt-5 w-full rounded-lg bg-vx-accent px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
-        <p className="mt-4 text-[11px] vx-muted">
-          First time? Create a super-admin with:
-          <code className="block mt-1 vx-surface-2 rounded px-2 py-1">
-            ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=... npm run seed:admin
-          </code>
-        </p>
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-sell">
+            {error}
+          </p>
+        )}
+        <Button type="submit" className="mt-5 w-full" loading={loading}>
+          Log in
+        </Button>
       </form>
     </div>
   );

@@ -10,6 +10,8 @@
 //
 // Database settings are read from database/backend/.env (the values that already work for you
 // locally); DB_HOST becomes `localhost`, which is how Hostinger apps reach Hostinger MySQL.
+// Email: put SMTP_USER and SMTP_PASS (a mailbox on your domain, e.g. support@example.com) in
+// database/backend/.env too, or add them later in hPanel's environment variables.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -83,7 +85,16 @@ const entries = [
   // Origins allowed for the /ws WebSocket handshake and cross-origin API calls.
   ["CORS_ORIGIN", `${site},${wwwSite}`],
   ["TRUST_PROXY_HOPS", previous.TRUST_PROXY_HOPS || "1"],
+  // Links inside emails point here.
+  ["APP_URL", site],
+  ["SMTP_HOST", previous.SMTP_HOST || local.SMTP_HOST || "smtp.hostinger.com"],
+  ["SMTP_PORT", previous.SMTP_PORT || local.SMTP_PORT || "465"],
 ];
+const smtpUser = previous.SMTP_USER || local.SMTP_USER;
+const smtpPass = previous.SMTP_PASS || local.SMTP_PASS;
+if (smtpUser && smtpPass) {
+  entries.push(["SMTP_USER", smtpUser], ["SMTP_PASS", smtpPass], ["MAIL_FROM", previous.MAIL_FROM || local.MAIL_FROM || smtpUser]);
+}
 
 fs.writeFileSync(outFile, format(entries), { mode: 0o600 });
 for (const file of legacyFiles) fs.rmSync(file, { force: true });
@@ -94,6 +105,7 @@ Wrote ${outFile}
 
 Site and API: ${site} (and ${wwwSite})
 Secrets:      ${rotate || !previous.JWT_ACCESS_SECRET ? "newly generated" : "kept from the existing file"}
+Email:        ${smtpUser && smtpPass ? `sending as ${smtpUser}` : "not set up (add SMTP_USER and SMTP_PASS to send emails)"}
 
 This file contains your database password and signing secrets. Keep it private and back it up
 somewhere safe; never commit or share it.

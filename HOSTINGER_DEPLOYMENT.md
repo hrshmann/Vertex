@@ -128,6 +128,29 @@ so logging in won't work until SSL is active.
 4. Register an account, place a small demo BTC trade in `/terminal`, then close it.
 5. Log in at `https://yourdomain.com/admin/login` with the admin account from step 2.
 
+## Step 6 — Turn on email
+
+The site sends welcome emails, verification decision emails (approved, more information
+needed, declined) and password reset links. Until email is set up, admins can still open each
+decision email in their own mail app, and the forgot-password page points clients to support.
+
+1. In hPanel, go to **Emails** and create a mailbox on your domain, for example
+   `support@yourdomain.com`. Choose a strong password.
+2. In hPanel, open the Node.js app → **Environment variables** and add:
+
+   | Name | Value |
+   | --- | --- |
+   | `SMTP_USER` | the mailbox address, e.g. `support@yourdomain.com` |
+   | `SMTP_PASS` | the mailbox password |
+
+   That's all: the app uses Hostinger's mail server (`smtp.hostinger.com`, port 465) by default.
+   Optional: `MAIL_FROM` (defaults to `SMTP_USER`) and `MAIL_FROM_NAME` (defaults to
+   `Vertex Trading`).
+3. Redeploy (or restart the app). Then check: on `/forgot-password`, request a link for your own
+   account. It should arrive within a minute. Check the spam folder the first time.
+
+Every email is recorded on the client's verification review page, with whether it was sent.
+
 ## Updating the site later
 
 Push to `main`. Hostinger rebuilds and redeploys automatically. Never change the JWT secrets or
@@ -147,12 +170,15 @@ Push to `main`. Hostinger rebuilds and redeploys automatically. Never change the
 | Runtime log: `Cannot find module ... required-server-files.json` or `dist/server.js` | The build didn't finish. The build command must be `build`, not `build:api` or `build:web`. |
 | Login succeeds but you're logged straight out | SSL isn't active yet. See step 4. |
 | Everyone gets "Rate limit exceeded" | `TRUST_PROXY_HOPS` is too low. See the `clientIp` check in step 5. |
+| Emails don't arrive, and the review page shows "Not sent ... The mail server didn't accept the email" | Wrong `SMTP_USER`/`SMTP_PASS`, or the mailbox doesn't exist. Log in to webmail with the same details to check. |
+| Emails land in spam | In hPanel → **Emails**, check that the domain's SPF, DKIM and DMARC records are set up (hPanel shows a warning if any are missing). |
 | No crypto prices | Look for `[coinbase] connected` in the runtime log. Binance takes over automatically if Coinbase is unreachable. Binance is blocked in some regions, including the US. |
 
 ## Reference
 
 **Database facts (checked 2026-10-15):** MariaDB 11.8, `utf8mb4_unicode_ci`. `001_init.sql`,
-`002_seed_instruments.sql` and `003_seed_compliance.sql` are recorded in `schema_migrations`.
+`002_seed_instruments.sql`, `003_seed_compliance.sql`, `004_kyc_document_storage.sql` and
+`005_email.sql` are recorded in `schema_migrations`.
 The database user is capped at `MAX_CONNECTIONS_PER_HOUR 500`, and the server's `wait_timeout`
 is 20 seconds. The pool closes idle connections after `DB_IDLE_TIMEOUT_MS` (default 15000). Keep
 that below `wait_timeout`.
@@ -177,9 +203,7 @@ that origin, and `CORS_ORIGIN` on the API must list the website's origin.
 
 - Trading is demo-only. Live broker or exchange execution isn't implemented.
 - Deposits and withdrawals have no real payment provider.
-- Email isn't configured, so password reset can't send anything.
-- KYC uploads are recorded but not stored. Set up private file storage before accepting real
-  documents.
+- Email needs a mailbox (step 6) before welcome, decision and password reset emails are sent.
 - Legal pages show placeholder text (`database/migrations/003_seed_compliance.sql`). Replace it
   with text for your licensed entity and jurisdiction.
 - Forex prices are indicative only. USD/JPY and NZD/USD use the daily ECB rate (see `README.md`).

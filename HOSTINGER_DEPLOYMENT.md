@@ -125,7 +125,7 @@ so logging in won't work until SSL is active.
 3. **WebSocket check:** in the browser's developer tools, go to **Network → WS** and reload. A
    `/ws` connection with status `101` means live streaming works. If WebSockets aren't available
    on your plan, prices still refresh every 3 seconds automatically. Nothing breaks.
-4. Register an account, place a small demo BTC trade in `/terminal`, then close it.
+4. Open `/markets` and check the prices move. Register an account and start verification.
 5. Log in at `https://yourdomain.com/admin/login` with the admin account from step 2.
 
 ## Step 6 — Turn on email
@@ -201,8 +201,7 @@ that origin, and `CORS_ORIGIN` on the API must list the website's origin.
 
 ## Product limitations to resolve before a public launch
 
-- Trading is demo-only. Live broker or exchange execution isn't implemented.
-- Deposits and withdrawals have no real payment provider.
+- The site shows prices only: there is no trading and no deposits or withdrawals.
 - Email needs a mailbox (step 6) before welcome, decision and password reset emails are sent.
 - Legal pages show placeholder text (`database/migrations/003_seed_compliance.sql`). Replace it
   with text for your licensed entity and jurisdiction.

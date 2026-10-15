@@ -1,7 +1,4 @@
 export type InstrumentClass = "FOREX" | "CRYPTO";
-export type OrderSide = "BUY" | "SELL";
-export type OrderType = "MARKET" | "LIMIT" | "STOP" | "STOP_LIMIT";
-export type RiskState = "NORMAL" | "MARGIN_WARNING" | "MARGIN_CALL" | "STOP_OUT";
 
 export interface Quote {
   instrumentId: string;
@@ -30,49 +27,6 @@ export interface MarketRow {
   volumeStep: number;
   maxLeverage: number;
   quote: Quote | null;
-}
-
-export interface Account {
-  id: string;
-  balance: number;
-  equity: number;
-  usedMargin: number;
-  freeMargin: number;
-  marginLevel: number | null;
-  unrealizedPnl: number;
-  currency: string;
-  mode: "DEMO" | "LIVE";
-  riskState: RiskState;
-  leverage: number;
-}
-
-export interface Position {
-  id: string;
-  symbol: string;
-  side: OrderSide;
-  volume: number;
-  entryPrice: number;
-  currentPrice: number | null;
-  stopLoss: number | null;
-  takeProfit: number | null;
-  swap: number;
-  unrealizedPnl: number | null;
-  openedAt: string;
-}
-
-export interface OrderRow {
-  id: string;
-  symbol: string;
-  side: OrderSide;
-  type: OrderType;
-  volume: string | number;
-  limit_price: string | null;
-  stop_price: string | null;
-  stop_loss: string | null;
-  take_profit: string | null;
-  status: string;
-  created_at: string;
-  executed_at: string | null;
 }
 
 export interface User {
@@ -117,25 +71,4 @@ export interface AppNotification {
   body: string | null;
   read_at: string | null;
   created_at: string;
-}
-
-export interface Transaction {
-  id: string;
-  type: string;
-  amount: string;
-  reference_id: string | null;
-  description: string | null;
-  created_at: string;
-}
-
-export interface FundsRequest {
-  id: string;
-  amount: string;
-  currency: string;
-  method: string;
-  status: string;
-  destination?: string;
-  created_at: string;
-  confirmed_at?: string | null;
-  processed_at?: string | null;
 }

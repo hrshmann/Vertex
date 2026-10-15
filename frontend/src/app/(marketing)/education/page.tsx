@@ -2,47 +2,45 @@ import { PageHeader } from "@/components/PageHeader";
 
 const SECTIONS = [
   {
-    title: "Forex basics",
-    body: "Currencies are traded in pairs. When you buy EUR/USD, you're buying euros and simultaneously selling US dollars, betting the euro strengthens against the dollar.",
+    title: "How currency pairs are quoted",
+    body: "A forex price compares two currencies. EUR/USD at 1.0850 means one euro costs 1.0850 US dollars. When the number goes up, the first currency has strengthened against the second.",
   },
   {
-    title: "Crypto basics",
-    body: "Cryptocurrencies trade 24/7 on global exchanges with no central market close. Prices can move sharply on news, liquidity shifts and broader market sentiment.",
+    title: "Bid, ask and spread",
+    body: "The bid is the highest price buyers are offering right now; the ask is the lowest price sellers will accept. The gap between them is the spread. A narrow spread usually means a busy, liquid market.",
   },
   {
-    title: "Technical analysis",
-    body: "Reading price charts — trends, support/resistance levels and indicators like moving averages or RSI — to inform entry and exit decisions.",
+    title: "Why crypto never closes",
+    body: "Cryptocurrencies are quoted around the clock, every day, on exchanges worldwide. Forex trades 24 hours on weekdays and pauses over the weekend, so forex prices stand still on Saturdays.",
   },
   {
-    title: "Risk management",
-    body: "Position sizing, stop losses and leverage control are what keep a single bad trade from doing lasting damage to an account.",
+    title: "Reading a candlestick chart",
+    body: "Each candle covers one period, such as an hour. Its body runs from the opening to the closing price; the thin lines show the highest and lowest price in that period. Green candles closed higher than they opened, red ones lower.",
   },
   {
-    title: "Trading psychology",
-    body: "Discipline and a written plan matter as much as analysis — most trading mistakes come from emotional decisions, not a lack of market knowledge.",
+    title: "The 24-hour change",
+    body: "The percentage next to each price compares it with the price 24 hours earlier. It's a quick way to see which markets are moving most today.",
   },
   {
-    title: "Trading strategies",
-    body: "From trend-following to range trading, a strategy defines concrete, repeatable rules for when to enter and exit — rather than reacting trade by trade.",
+    title: "Live and reference rates",
+    body: "Most prices here update several times a second. A few forex pairs use the European Central Bank's daily reference rate instead, which changes once each working day. Each price is labelled so you know which is which.",
   },
 ];
 
 export default function EducationPage() {
   return (
     <div>
-      <PageHeader title="Education" subtitle="Core concepts for anyone starting out in forex or crypto trading." />
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-14 space-y-6">
+      <PageHeader title="Learn" subtitle="What the numbers on a price screen mean." />
+      <div className="mx-auto grid max-w-5xl gap-5 px-4 py-14 sm:px-6 md:grid-cols-2 lg:px-8">
         {SECTIONS.map((s) => (
-          <div key={s.title} className="vx-surface rounded-xl p-6">
-            <h2 className="font-semibold mb-2">{s.title}</h2>
-            <p className="text-sm vx-muted leading-relaxed">{s.body}</p>
-          </div>
+          <section key={s.title} className="rounded-panel border border-line bg-surface p-6">
+            <h2 className="mb-2 font-semibold">{s.title}</h2>
+            <p className="text-sm leading-relaxed text-muted">{s.body}</p>
+          </section>
         ))}
-        <div className="rounded-xl border border-vx-warn/30 bg-vx-warn/5 p-6 text-sm leading-relaxed">
-          Trading leveraged financial products and cryptocurrencies involves significant risk and may not be
-          suitable for all investors. You may lose some or all of your invested capital. Please consider your
-          financial circumstances and risk tolerance before trading.
-        </div>
+        <p className="text-sm leading-relaxed text-muted md:col-span-2">
+          Prices of cryptocurrencies and currencies can move sharply and without warning. Nothing on this site is financial advice.
+        </p>
       </div>
     </div>
   );

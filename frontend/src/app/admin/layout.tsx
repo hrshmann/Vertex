@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, LayoutGrid, LineChart, LogOut, ShieldCheck, Users } from "lucide-react";
+import { LayoutGrid, LogOut, ShieldCheck, Users } from "lucide-react";
 import { AdminAuthProvider, useAdminAuth } from "@/lib/AdminAuthContext";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/portal/HeaderMenus";
@@ -12,9 +12,7 @@ import { ThemeToggle } from "@/components/portal/HeaderMenus";
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutGrid, exact: true },
   { href: "/admin/kyc", label: "Verifications", icon: ShieldCheck },
-  { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowDownUp },
   { href: "/admin/users", label: "Clients", icon: Users },
-  { href: "/admin/instruments", label: "Instruments", icon: LineChart },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

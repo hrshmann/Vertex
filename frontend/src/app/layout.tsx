@@ -15,7 +15,7 @@ const plexCondensed = IBM_Plex_Sans_Condensed({
 export const metadata: Metadata = {
   title: { default: "Vertex Trading", template: "%s | Vertex Trading" },
   description:
-    "Trade forex and crypto on a demo account with live prices, then verify your identity and manage funds in one place.",
+    "Live crypto and forex prices and charts, streamed in real time. Open an account and verify your identity in minutes.",
 };
 
 export const viewport: Viewport = {

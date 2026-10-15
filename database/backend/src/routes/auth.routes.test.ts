@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   verifyAccessToken: vi.fn(),
   verifyRefreshToken: vi.fn(),
   logAudit: vi.fn(),
-  ensureDemoAccount: vi.fn(),
   isMailConfigured: vi.fn(),
   sendClientMail: vi.fn(),
 }));
@@ -90,12 +89,11 @@ describe("auth routes with mocked persistence", () => {
       throw new Error("invalid token");
     });
     mocks.logAudit.mockResolvedValue(undefined);
-    mocks.ensureDemoAccount.mockResolvedValue("demo-account-id");
 
     const app = express();
     app.use(express.json());
     app.use(cookieParser());
-    app.use("/api/auth", authRouter({ ensureDemoAccount: mocks.ensureDemoAccount } as never));
+    app.use("/api/auth", authRouter());
     app.use(errorHandler);
     server = app.listen(0);
     await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -126,7 +124,8 @@ describe("auth routes with mocked persistence", () => {
 
     expect(response.status).toBe(201);
     expect(mocks.query).toHaveBeenCalled();
-    expect(mocks.ensureDemoAccount).toHaveBeenCalledOnce();
+    expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO kyc_profiles"), expect.anything());
+    expect(mocks.query).not.toHaveBeenCalledWith(expect.stringContaining("trading_accounts"), expect.anything());
     expect(cookies.some((cookie) => cookie.startsWith("vx_access="))).toBe(true);
     expect(cookies.some((cookie) => cookie.startsWith("vx_refresh=") && cookie.includes("Path=/api/auth"))).toBe(true);
     expect(logSpy).not.toHaveBeenCalled();
@@ -142,7 +141,6 @@ describe("auth routes with mocked persistence", () => {
 
     expect(response.status).toBe(400);
     expect(mocks.query).not.toHaveBeenCalled();
-    expect(mocks.ensureDemoAccount).not.toHaveBeenCalled();
   });
 
   it("logs in valid credentials and rejects unknown credentials", async () => {

@@ -1,10 +1,9 @@
 # Vertex Trading
 
-A forex & crypto trading broker website and web trading terminal: Next.js/TypeScript frontend,
-Node.js/Express API + WebSocket gateway, MariaDB. This is the MVP core of the full spec in
-`docs/original-spec.md` — the main site, auth, live markets, a demo trading terminal with a real
-order-matching/risk engine, KYC upload, deposits/withdrawals, and a basic admin panel. See
-"What's not built yet" below for what's intentionally out of scope for this pass.
+A live crypto and forex price website: real-time prices and charts (public), client accounts
+with identity verification (KYC) and email, and an admin panel for reviewing verifications.
+Next.js/TypeScript frontend, Node.js/Express API + WebSocket gateway, MariaDB. There is no
+trading: nothing is bought or sold and no client money is held.
 
 To go live on Hostinger, follow [HOSTINGER_DEPLOYMENT.md](./HOSTINGER_DEPLOYMENT.md), the
 step-by-step launch guide. The root `package.json` and `app.js` are Hostinger's build script and
@@ -13,8 +12,8 @@ entry file: one app serves the website and API together on one address.
 ## Project layout
 
 ```
-database/backend/ Node.js API, WebSocket gateway, market-data clients, demo trading engine
-frontend/     Next.js site + trading terminal + admin panel
+database/backend/ Node.js API, WebSocket gateway, market-data clients, email
+frontend/     Next.js site (live prices, client portal) + admin panel
 database/     SQL migrations (run in filename order)
 docker-compose.yml
 ```
@@ -39,9 +38,7 @@ What this means today:
   interbank or broker liquidity. EUR/USD, GBP/USD, USD/CHF, USD/CAD and AUD/USD are covered.
   USD/JPY (too thin on Kraken) and NZD/USD (not listed) use the daily ECB rate. Live pairs also
   get intraday candles from Kraken; daily-rate pairs only have `1D` candles.
-- Every forex quote stays `isIndicative: true` end-to-end (API, WebSocket events, UI). Every
-  forex instrument is seeded `is_executable: false`, so forex orders can't be placed: the order
-  engine only fills executable instruments.
+- Every forex quote stays `isIndicative: true` end-to-end (API, WebSocket events, UI).
 
 ### Upgrading forex to broker-grade prices
 
@@ -49,20 +46,8 @@ For interbank or broker pricing on all pairs (including USD/JPY and NZD/USD), co
 or broker API with a key. For example, an OANDA practice (demo) account gives streaming bid/ask
 for all majors, and [Twelve Data](https://twelvedata.com/) has a free tier. Add a client next to
 `krakenForexClient.ts`, read the key from an env var, and make it the forex primary in
-`feeds.ts`. Set `is_executable = true` on the forex rows in `instruments` only when you're ready
-to let users trade against that feed. The quote cache, WebSocket broadcast, chart, order panel
-and demo engine need no changes. They're written against the `Quote`/`Instrument`
-abstractions, not the provider.
-
-## Order execution — demo only
-
-The order engine (`database/backend/src/services/trading/demoEngine.ts`) implements the `TradingProvider`
-interface (`database/backend/src/types.ts`) against the live/indicative quote cache: Market/Limit/Stop/
-Stop-Limit orders, Stop Loss/Take Profit auto-close, server-side margin and risk calculation
-(margin warning/call/stop-out), all for a **DEMO account only**. No LIVE provider is implemented —
-that would mean calling an authorized broker or exchange's official API with real credentials,
-and none were supplied. `LIVE` mode is rejected by the API with a clear error until a real adapter
-is written and registered the same way `DemoTradingEngine` is in `database/backend/src/index.ts`.
+`feeds.ts`. The quote cache, WebSocket broadcast and charts need no changes; they're written
+against the `Quote`/`Instrument` abstractions, not the provider.
 
 ## Getting started
 
@@ -98,8 +83,7 @@ npm install
 npm run dev                 # http://localhost:3000
 ```
 
-Visit `http://localhost:3000`, register an account, and open the terminal — crypto prices should
-be live within a few seconds. Admin panel: `http://localhost:3000/admin/login`, using the
+Visit `http://localhost:3000/markets` — crypto prices should be live within a few seconds. Admin panel: `http://localhost:3000/admin/login`, using the
 credentials from `npm run seed:admin`.
 
 ### Docker Compose (all services)
@@ -114,17 +98,9 @@ never run automatically on application startup.
 
 ## What's not built yet
 
-Deliberately out of scope for this MVP pass (flagged rather than faked):
-
-- **LIVE trading / broker-exchange adapters** — needs real, authorized broker/exchange API
-  credentials and documentation, which weren't supplied.
-- **Payment provider integration** — deposits/withdrawals are recorded with the correct status
-  flow (`PENDING` → ...), but nothing calls a real payment gateway; demo deposits settle
-  instantly as play money, and nothing is ever auto-marked `COMPLETED` for a LIVE account without
-  a provider confirming it.
-- **Email/SMS delivery** — no transactional delivery provider is configured, so verification and
-  password-reset instructions cannot be delivered. Password-reset requests are acknowledged
-  without claiming that a link was sent.
+- **Trading and payments** were removed on purpose: the site shows prices only and holds no
+  client money. The old tables (`orders`, `positions`, `deposits`, ...) are left in the database
+  untouched.
 - **Full 2FA (TOTP) enrollment UI**, object storage for KYC documents (the upload endpoint exists
   and validates files, but stores a placeholder key — point `storage_key` at real private object
   storage before launch), chart indicators/drawing tools, CSV/PDF export, and the remaining

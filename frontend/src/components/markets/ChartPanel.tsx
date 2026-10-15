@@ -164,14 +164,14 @@ export function ChartPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[rgb(var(--border))]">
-        <div className="flex gap-1">
+      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-[rgb(var(--border))]">
+        <div className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1">
           {TIMEFRAMES.map((tf) => (
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
               aria-pressed={timeframe === tf}
-              className={`rounded-[6px] px-2 py-1 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-[6px] px-2 py-1 text-xs font-medium transition-colors ${
                 timeframe === tf ? "bg-accent-soft text-accent" : "text-muted hover:text-ink"
               }`}
             >
@@ -180,8 +180,8 @@ export function ChartPanel({ symbol }: { symbol: string }) {
           ))}
         </div>
         {source && (
-          <span className="text-2xs text-muted">
-            <span className="capitalize">{source.provider}</span>
+          <span className="hidden shrink-0 text-2xs text-muted sm:inline">
+            Chart data: <span className="capitalize">{source.provider}</span>
             {source.isIndicative && ", indicative"}
           </span>
         )}

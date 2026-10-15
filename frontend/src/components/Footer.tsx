@@ -25,16 +25,13 @@ export function Footer() {
               Vertex Trading
             </div>
             <p className="vx-muted leading-relaxed">
-              Trade Forex, Crypto and other supported financial instruments through a professional trading
-              platform with real-time market data.
+              Live crypto and forex prices and charts, streamed in real time.
             </p>
           </div>
           <div>
             <div className="font-medium mb-3">Platform</div>
             <ul className="space-y-2 vx-muted">
-              <li><Link href="/markets" className="hover:text-[rgb(var(--text))]">Markets</Link></li>
-              <li><Link href="/trading" className="hover:text-[rgb(var(--text))]">Trading</Link></li>
-              <li><Link href="/account-types" className="hover:text-[rgb(var(--text))]">Account Types</Link></li>
+              <li><Link href="/markets" className="hover:text-[rgb(var(--text))]">Live prices</Link></li>
               <li><Link href="/education" className="hover:text-[rgb(var(--text))]">Education</Link></li>
             </ul>
           </div>
@@ -60,13 +57,9 @@ export function Footer() {
 
         <div className="mt-10 pt-6 border-t border-[rgb(var(--border))] text-xs vx-muted leading-relaxed space-y-2">
           <p>
-            Trading leveraged financial products and cryptocurrencies involves significant risk and may not be
-            suitable for all investors. You may lose some or all of your invested capital. Please consider your
-            financial circumstances and risk tolerance before trading.
-          </p>
-          <p>
-            Vertex Trading is a demonstration platform. It is not presented as, and does not operate as, a
-            licensed broker. See our <Link href="/legal/risk-disclosure" className="underline">Risk Disclosure</Link> for details.
+            Prices on this site are for information only and are not an offer to buy or sell any financial product.
+            Vertex Trading does not execute trades or hold client funds. Cryptocurrency and currency prices can move
+            sharply. See our <Link href="/legal/risk-disclosure" className="underline">Risk Disclosure</Link> for details.
           </p>
           <p>© {new Date().getFullYear()} Vertex Trading. All rights reserved.</p>
         </div>

@@ -41,3 +41,9 @@ export function timeAgo(value: string): string {
   if (seconds < 86_400) return `${Math.round(seconds / 3600)} h ago`;
   return new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
+
+/** A price with thousands separators, e.g. 82,242.62. Fixed locale, so server and browser agree. */
+export function formatPrice(value: number | null | undefined, decimals: number): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}

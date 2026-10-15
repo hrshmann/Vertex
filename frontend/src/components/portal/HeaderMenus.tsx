@@ -41,7 +41,7 @@ export function NotificationsMenu() {
           <ul className="max-h-96 overflow-y-auto">
             {loaded && notifications.length === 0 && (
               <li className="px-4 py-8 text-center text-xs text-muted">
-                Trade fills, verification updates and security alerts appear here.
+                Verification updates and security alerts appear here.
               </li>
             )}
             {notifications.slice(0, 30).map((n) => (

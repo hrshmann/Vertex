@@ -4,21 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import clsx from "clsx";
-import { CandlestickChart, History, LayoutGrid, Settings, ShieldCheck, Wallet } from "lucide-react";
+import { CandlestickChart, LayoutGrid, Settings, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/lib/AuthContext";
-import { useAccount } from "@/lib/useAccount";
 import { KycProvider, useKyc } from "@/lib/usePortalData";
-import { formatMoney } from "@/lib/format";
 import { NotificationsMenu, ThemeToggle, UserMenu } from "./HeaderMenus";
 import { KycBanner } from "./KycBanner";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
-  { href: "/terminal", label: "Trade", icon: CandlestickChart },
-  { href: "/funds", label: "Funds", icon: Wallet },
+  { href: "/prices", label: "Live prices", icon: CandlestickChart },
   { href: "/kyc", label: "Verification", icon: ShieldCheck },
-  { href: "/history", label: "History", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -52,9 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Logo className="h-6 w-6" />
             Vertex
           </Link>
-          <p className="hidden text-xs text-muted lg:block">
-            Demo account. Prices are live; trades and balances use virtual money.
-          </p>
+          <p className="hidden text-xs text-muted lg:block">Prices stream live from Coinbase and Kraken.</p>
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <NotificationsMenu />
@@ -84,7 +78,6 @@ function KycDot() {
 }
 
 function Sidebar({ pathname }: { pathname: string }) {
-  const { account } = useAccount("DEMO");
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
       <Link href="/dashboard" className="flex h-14 items-center gap-2 border-b border-line px-5 font-semibold">
@@ -108,20 +101,13 @@ function Sidebar({ pathname }: { pathname: string }) {
           </Link>
         ))}
       </nav>
-      <div className="m-3 rounded-panel border border-line bg-raised p-4">
-        <p className="text-2xs text-muted">Demo account equity</p>
-        <p className="mt-1 text-lg font-semibold vx-tabular">{account ? formatMoney(account.equity) : "—"}</p>
-        <Link href="/funds" className="mt-2 inline-block text-xs font-medium text-accent hover:underline">
-          Add funds
-        </Link>
-      </div>
     </aside>
   );
 }
 
 function MobileNav({ pathname }: { pathname: string }) {
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
       {MOBILE_NAV.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
@@ -133,7 +119,7 @@ function MobileNav({ pathname }: { pathname: string }) {
           )}
         >
           <Icon className="h-5 w-5" aria-hidden />
-          {label === "Verification" ? "Verify" : label}
+          {label === "Verification" ? "Verify" : label === "Live prices" ? "Prices" : label}
           {href === "/kyc" && (
             <span className="absolute right-[calc(50%-14px)] top-2">
               <KycDot />

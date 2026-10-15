@@ -2,37 +2,18 @@
 
 import Link from "next/link";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
-import { ArrowDownToLine, CandlestickChart, Receipt } from "lucide-react";
+import { Bell, Check, Circle, Clock, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { useAccount } from "@/lib/useAccount";
-import { usePositions } from "@/lib/usePositions";
 import { useMarkets } from "@/lib/useMarkets";
-import { api } from "@/lib/api";
-import { Transaction } from "@/lib/types";
-import { formatDateTime, formatMoney, formatSignedMoney, priceDecimals } from "@/lib/format";
+import { useKyc, useNotifications } from "@/lib/usePortalData";
+import { formatDateTime, priceDecimals, timeAgo } from "@/lib/format";
+import { instrumentName } from "@/lib/instruments";
 import { ButtonLink } from "@/components/ui/Button";
-import { Figure, Panel } from "@/components/ui/Panel";
+import { Panel } from "@/components/ui/Panel";
 import { EmptyState, Skeleton } from "@/components/ui/States";
 import { PriceFlash } from "@/components/PriceFlash";
-import { OnboardingTrack } from "@/components/portal/OnboardingTrack";
 
-const RISK: Record<string, { label: string; className: string }> = {
-  NORMAL: { label: "Healthy", className: "text-buy" },
-  MARGIN_WARNING: { label: "Margin warning", className: "text-warn" },
-  MARGIN_CALL: { label: "Margin call", className: "text-sell" },
-  STOP_OUT: { label: "Stop out", className: "text-sell" },
-};
-
-const TRANSACTION_LABELS: Record<string, string> = {
-  DEPOSIT: "Deposit",
-  WITHDRAWAL: "Withdrawal",
-  REALIZED_PNL: "Closed trade",
-  ADJUSTMENT: "Adjustment",
-  FEE: "Fee",
-  COMMISSION: "Commission",
-  SWAP: "Swap",
-};
+const WATCH = ["BTC/USD", "ETH/USD", "SOL/USD", "EUR/USD", "GBP/USD", "USD/JPY"];
 
 function greeting() {
   const hour = new Date().getHours();
@@ -41,183 +22,49 @@ function greeting() {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { account } = useAccount("DEMO");
-  const { positions } = usePositions();
   const { rows } = useMarkets();
-  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
-
-  useEffect(() => {
-    api.get<Transaction[]>("/api/account/transactions?mode=DEMO&limit=6").then(setTransactions).catch(() => setTransactions([]));
-  }, []);
-
-  const watch = ["BTC/USD", "ETH/USD", "EUR/USD", "GBP/USD", "SOL/USD", "USD/JPY"]
-    .map((s) => rows.find((r) => r.symbol === s))
-    .filter((r): r is NonNullable<typeof r> => !!r);
+  const watch = WATCH.map((s) => rows.find((r) => r.symbol === s)).filter((r): r is NonNullable<typeof r> => !!r);
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">
-            {greeting()}, {user?.first_name}
-          </h1>
-          <p className="mt-1 text-sm text-muted">Here's where your demo account stands.</p>
-        </div>
-        <div className="flex gap-2">
-          <ButtonLink href="/funds" variant="secondary">
-            <ArrowDownToLine className="h-4 w-4" />
-            Add funds
-          </ButtonLink>
-          <ButtonLink href="/terminal">
-            <CandlestickChart className="h-4 w-4" />
-            Trade
-          </ButtonLink>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold">
+          {greeting()}
+          {user?.first_name ? `, ${user.first_name}` : ""}
+        </h1>
+        <p className="mt-1 text-sm text-muted">Your account and the markets at a glance.</p>
       </div>
 
-      <OnboardingTrack />
+      <VerificationCard />
 
-      <Panel className="mb-6" bodyClassName="p-5">
-        {account ? (
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
-            <Figure label="Equity" value={formatMoney(account.equity)} sub="Balance plus open profit and loss" />
-            <Figure label="Balance" value={formatMoney(account.balance)} />
-            <Figure label="Free margin" value={formatMoney(account.freeMargin)} sub="Available for new trades" />
-            <Figure
-              label="Open P/L"
-              value={formatSignedMoney(account.unrealizedPnl)}
-              tone={account.unrealizedPnl > 0 ? "buy" : account.unrealizedPnl < 0 ? "sell" : undefined}
-            />
-            <Figure
-              label="Margin level"
-              value={account.marginLevel != null ? `${account.marginLevel.toFixed(0)}%` : "No open trades"}
-              sub={<span className={RISK[account.riskState]?.className}>{RISK[account.riskState]?.label}</span>}
-            />
-          </dl>
-        ) : (
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12" />
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-6">
-          <Panel
-            title={`Open positions${positions.length ? ` (${positions.length})` : ""}`}
-            actions={positions.length > 0 && <ButtonLink href="/terminal" variant="ghost" size="sm">Manage in terminal</ButtonLink>}
-            bodyClassName=""
-          >
-            {positions.length === 0 ? (
-              <EmptyState
-                icon={<CandlestickChart className="h-5 w-5" />}
-                title="No open positions"
-                body="Positions you open in the terminal show here with live profit and loss."
-                action={<ButtonLink href="/terminal" size="sm">Open the terminal</ButtonLink>}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs text-muted">
-                    <tr className="border-b border-line">
-                      <th className="px-5 py-2.5 font-medium">Market</th>
-                      <th className="px-3 py-2.5 font-medium">Side</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Size</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Entry</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Price</th>
-                      <th className="px-5 py-2.5 text-right font-medium">P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {positions.map((p) => {
-                      const d = priceDecimals(p.symbol, p.entryPrice);
-                      return (
-                        <tr key={p.id} className="border-b border-line last:border-0">
-                          <td className="px-5 py-3 font-medium">{p.symbol}</td>
-                          <td className={clsx("px-3 py-3", p.side === "BUY" ? "text-buy" : "text-sell")}>{p.side === "BUY" ? "Buy" : "Sell"}</td>
-                          <td className="px-3 py-3 text-right vx-tabular">{p.volume}</td>
-                          <td className="px-3 py-3 text-right vx-tabular">{p.entryPrice.toFixed(d)}</td>
-                          <td className="px-3 py-3 text-right">
-                            <PriceFlash value={p.currentPrice} decimals={d} />
-                          </td>
-                          <td
-                            className={clsx(
-                              "px-5 py-3 text-right font-medium vx-tabular",
-                              (p.unrealizedPnl ?? 0) > 0 ? "text-buy" : (p.unrealizedPnl ?? 0) < 0 ? "text-sell" : ""
-                            )}
-                          >
-                            {formatSignedMoney(p.unrealizedPnl)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-
-          <Panel
-            title="Recent activity"
-            actions={<ButtonLink href="/history" variant="ghost" size="sm">See all</ButtonLink>}
-            bodyClassName=""
-          >
-            {transactions === null ? (
-              <div className="space-y-3 p-5">
-                <Skeleton className="h-5" />
-                <Skeleton className="h-5" />
-              </div>
-            ) : transactions.length === 0 ? (
-              <EmptyState icon={<Receipt className="h-5 w-5" />} title="No activity yet" body="Deposits, withdrawals and closed trades appear here." />
-            ) : (
-              <ul>
-                {transactions.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-4 border-b border-line px-5 py-3 last:border-0">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{TRANSACTION_LABELS[t.type] ?? t.type}</p>
-                      <p className="truncate text-xs text-muted">
-                        {t.description ? `${t.description}, ` : ""}
-                        {formatDateTime(t.created_at)}
-                      </p>
-                    </div>
-                    <span className={clsx("shrink-0 text-sm font-medium vx-tabular", Number(t.amount) >= 0 ? "text-buy" : "text-sell")}>
-                      {formatSignedMoney(t.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
-
-        <Panel title="Markets" actions={<ButtonLink href="/markets" variant="ghost" size="sm">All markets</ButtonLink>} bodyClassName="">
-          <ul>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <Panel
+          title="Live prices"
+          actions={<ButtonLink href="/prices" variant="ghost" size="sm">All prices and charts</ButtonLink>}
+          bodyClassName=""
+        >
+          <ul className="grid sm:grid-cols-2">
             {watch.length === 0 &&
-              Array.from({ length: 6 }).map((_, i) => (
-                <li key={i} className="border-b border-line px-5 py-3 last:border-0">
-                  <Skeleton className="h-5" />
+              WATCH.map((s) => (
+                <li key={s} className="border-b border-line px-5 py-3.5">
+                  <Skeleton className="h-6" />
                 </li>
               ))}
             {watch.map((r) => {
               const q = r.quote;
               const change = q?.change24hPct ?? null;
               return (
-                <li key={r.symbol} className="border-b border-line last:border-0">
-                  <Link href={`/terminal?symbol=${encodeURIComponent(r.symbol)}`} className="flex items-center justify-between px-5 py-3 hover:bg-raised">
-                    <div>
+                <li key={r.symbol} className="border-b border-line sm:odd:border-r">
+                  <Link href={`/prices?symbol=${encodeURIComponent(r.symbol)}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-raised">
+                    <div className="min-w-0">
                       <p className="text-sm font-medium">{r.symbol}</p>
-                      <p className="text-2xs text-muted">{r.class === "CRYPTO" ? "Crypto" : r.isExecutable ? "Forex" : "Forex, indicative"}</p>
+                      <p className="truncate text-2xs text-muted">{instrumentName(r.symbol)}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="text-sm font-medium" />
-                      {change != null && (
-                        <p className={clsx("text-2xs vx-tabular", change >= 0 ? "text-buy" : "text-sell")}>
-                          {change >= 0 ? "+" : ""}
-                          {change.toFixed(2)}%
-                        </p>
-                      )}
+                      <p className={clsx("text-2xs vx-tabular", change == null ? "text-muted" : change >= 0 ? "text-buy" : "text-sell")}>
+                        {change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
+                      </p>
                     </div>
                   </Link>
                 </li>
@@ -225,7 +72,109 @@ export default function DashboardPage() {
             })}
           </ul>
         </Panel>
+
+        <RecentNotifications />
       </div>
     </div>
+  );
+}
+
+/** Where the client stands with identity verification, and what to do next. */
+function VerificationCard() {
+  const { kyc } = useKyc();
+  if (!kyc) return <Skeleton className="h-28" />;
+
+  if (kyc.status === "APPROVED") {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-panel border border-buy/30 bg-buy-soft px-5 py-4">
+        <ShieldCheck className="h-5 w-5 text-buy" aria-hidden />
+        <p className="text-sm">
+          <span className="font-medium">Your identity is verified.</span>{" "}
+          <span className="text-muted">Verified {formatDateTime(kyc.reviewed_at)}.</span>
+        </p>
+      </div>
+    );
+  }
+
+  if (kyc.status === "UNDER_REVIEW") {
+    return (
+      <div className="flex flex-wrap items-start gap-3 rounded-panel border border-accent/30 bg-accent-soft px-5 py-4">
+        <Clock className="mt-0.5 h-5 w-5 text-accent" aria-hidden />
+        <div>
+          <p className="text-sm font-medium">We're reviewing your documents</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Submitted {formatDateTime(kyc.submitted_at)}. This usually takes one business day, and we'll email you when it's done.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const needsChanges = kyc.status === "ADDITIONAL_INFORMATION_REQUIRED" || kyc.status === "REJECTED";
+  const items = [
+    { done: kyc.requirements.identity, label: "Photo ID" },
+    { done: kyc.requirements.proofOfAddress, label: "Proof of address" },
+    { done: kyc.requirements.selfie, label: "Selfie" },
+  ];
+  const started = kyc.documents.length > 0;
+
+  return (
+    <section
+      aria-labelledby="verify-title"
+      className={clsx("rounded-panel border p-5 sm:p-6", needsChanges ? "border-warn/40 bg-warn-soft" : "border-line bg-surface")}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <ShieldAlert className={clsx("mt-0.5 h-5 w-5 shrink-0", needsChanges ? "text-warn" : "text-accent")} aria-hidden />
+          <div className="min-w-0">
+            <h2 id="verify-title" className="text-base font-semibold">
+              {needsChanges ? "Your verification needs changes" : "Verify your identity"}
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-muted">
+              {needsChanges && kyc.rejection_reason
+                ? kyc.rejection_reason
+                : "Complete your account by uploading three documents. It takes about 3 minutes."}
+            </p>
+          </div>
+        </div>
+        <ButtonLink href="/kyc">{needsChanges ? "Update documents" : started ? "Continue verification" : "Start verification"}</ButtonLink>
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 pl-8">
+        {items.map((item) => (
+          <li key={item.label} className={clsx("flex items-center gap-2 text-sm", item.done ? "text-ink" : "text-muted")}>
+            {item.done ? <Check className="h-4 w-4 text-buy" strokeWidth={3} aria-hidden /> : <Circle className="h-4 w-4 text-line" aria-hidden />}
+            {item.label}
+            <span className="sr-only">{item.done ? "(uploaded)" : "(not uploaded yet)"}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RecentNotifications() {
+  const { notifications, loaded } = useNotifications();
+  const recent = notifications.slice(0, 5);
+  return (
+    <Panel title="Notifications" bodyClassName="">
+      {!loaded ? (
+        <div className="space-y-3 p-5">
+          <Skeleton className="h-5" />
+          <Skeleton className="h-5" />
+        </div>
+      ) : recent.length === 0 ? (
+        <EmptyState icon={<Bell className="h-5 w-5" />} title="Nothing yet" body="Verification updates and security alerts appear here." />
+      ) : (
+        <ul>
+          {recent.map((n) => (
+            <li key={n.id} className="border-b border-line px-5 py-3 last:border-0">
+              <p className={clsx("text-sm", n.read_at ? "text-ink" : "font-medium text-ink")}>{n.title}</p>
+              {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{n.body}</p>}
+              <p className="mt-1 text-2xs text-muted">{timeAgo(n.created_at)}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }

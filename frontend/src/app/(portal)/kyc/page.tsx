@@ -107,7 +107,7 @@ export default function VerificationPage() {
     <div>
       <PageTitle
         title="Verification"
-        description="We verify every client's identity before allowing withdrawals. This protects your account and is required by financial regulation."
+        description="We verify every client's identity. This protects your account and is required by financial regulation."
         actions={<StatusBadge status={kyc.status} />}
       />
 
@@ -294,8 +294,8 @@ function StatusSummary({
   if (status === "APPROVED") {
     return (
       <div className="mb-6">
-        <Notice tone="buy" icon={<ShieldCheck className="h-4 w-4" />} title="Your identity is verified" action={<ButtonLink href="/funds" size="sm" variant="secondary">Go to funds</ButtonLink>}>
-          Verified {formatDateTime(reviewedAt)}. Withdrawals are available.
+        <Notice tone="buy" icon={<ShieldCheck className="h-4 w-4" />} title="Your identity is verified" action={<ButtonLink href="/prices" size="sm" variant="secondary">See live prices</ButtonLink>}>
+          Verified {formatDateTime(reviewedAt)}. Your account is complete.
         </Notice>
       </div>
     );

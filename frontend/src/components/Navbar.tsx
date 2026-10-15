@@ -11,9 +11,7 @@ import { ThemeToggle } from "./portal/HeaderMenus";
 import { ButtonLink } from "./ui/Button";
 
 const NAV_LINKS = [
-  { href: "/markets", label: "Markets" },
-  { href: "/trading", label: "Trading" },
-  { href: "/account-types", label: "Account types" },
+  { href: "/markets", label: "Live prices" },
   { href: "/education", label: "Learn" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },

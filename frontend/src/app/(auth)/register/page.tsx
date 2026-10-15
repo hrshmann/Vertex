@@ -65,7 +65,7 @@ export default function RegisterPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold">Open a free account</h1>
-      <p className="mt-1 text-sm text-muted">Start on a demo account with $10,000 of virtual funds. No deposit needed.</p>
+      <p className="mt-1 text-sm text-muted">It takes a minute. You'll verify your identity next.</p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div className="grid grid-cols-2 gap-3">

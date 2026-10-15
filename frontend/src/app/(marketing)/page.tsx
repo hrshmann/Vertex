@@ -1,112 +1,120 @@
 "use client";
 
 import Link from "next/link";
+import clsx from "clsx";
+import { CandlestickChart, Radio, ShieldCheck } from "lucide-react";
 import { useMarkets } from "@/lib/useMarkets";
-import { PriceFlash } from "@/components/PriceFlash";
-import { priceDecimals } from "@/lib/format";
 import { useAuth } from "@/lib/AuthContext";
+import { priceDecimals } from "@/lib/format";
+import { instrumentName } from "@/lib/instruments";
+import { PriceFlash } from "@/components/PriceFlash";
+import { ButtonLink } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/States";
 
-const FEATURES = [
-  { title: "Real-time market data", body: "Live crypto pricing streamed over WebSockets, with every quote labeled by source and timestamp." },
-  { title: "Professional order types", body: "Market, Limit, Stop and Stop-Limit orders with Stop Loss and Take Profit on every position." },
-  { title: "Transparent execution", body: "Orders route through an auditable order-management layer — never a black box." },
-  { title: "Built-in risk controls", body: "Server-enforced margin requirements, margin-call and stop-out rules protect your account." },
+const BOARD = ["BTC/USD", "ETH/USD", "SOL/USD", "XRP/USD", "EUR/USD", "GBP/USD", "USD/JPY"];
+
+const POINTS = [
+  {
+    icon: Radio,
+    title: "Straight from the source",
+    body: "Crypto prices come from Coinbase and forex rates from Kraken, several times a second. Every price shows where it came from and when.",
+  },
+  {
+    icon: CandlestickChart,
+    title: "Charts for every market",
+    body: "Candlestick charts from one minute to one month, updating live as new prices arrive.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Verified accounts",
+    body: "Open an account and verify your identity in a few minutes. Your documents are encrypted and only seen by our compliance team.",
+  },
 ];
 
 export default function HomePage() {
   const { rows } = useMarkets();
   const { user } = useAuth();
-  const forex = rows.filter((r) => r.class === "FOREX").slice(0, 7);
-  const crypto = rows.filter((r) => r.class === "CRYPTO").slice(0, 5);
+  const board = BOARD.map((s) => rows.find((r) => r.symbol === s)).filter((r): r is NonNullable<typeof r> => !!r);
 
   return (
     <div>
-      <section className="relative overflow-hidden bg-vx-radial">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 md:pt-28 md:pb-24">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full vx-surface-2 px-3 py-1 text-xs vx-muted mb-6">
-              <span className="h-1.5 w-1.5 rounded-full bg-vx-buy animate-pulse" />
-              Live markets — demo trading account
-            </span>
-            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-              Trade global markets with <span className="text-vx-accent">Vertex</span>
-            </h1>
-            <p className="mt-6 text-lg vx-muted max-w-xl leading-relaxed">
-              Trade Forex, Crypto and other supported financial instruments through a professional
-              trading platform with real-time market data.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/register" className="rounded-lg bg-vx-accent px-6 py-3 text-sm font-medium text-white hover:bg-vx-accent/90 transition-colors">
-                Open Account
-              </Link>
-              <Link href="/login" className="rounded-lg vx-surface-2 px-6 py-3 text-sm font-medium hover:bg-[rgb(var(--border))] transition-colors">
-                Login
-              </Link>
-              <Link href={user ? "/terminal" : "/register"} className="rounded-lg px-6 py-3 text-sm font-medium border border-[rgb(var(--border))] hover:border-vx-accent transition-colors">
-                Start Trading →
-              </Link>
-            </div>
+      <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-14 sm:px-6 md:pt-20 lg:grid-cols-[minmax(0,1fr)_30rem] lg:px-8">
+        <div className="max-w-xl">
+          <p className="flex items-center gap-2 text-sm font-medium text-buy">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-buy" aria-hidden />
+            Markets are live
+          </p>
+          <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.1] tracking-tight md:text-5xl">
+            Crypto and forex prices, the moment they move.
+          </h1>
+          <p className="mt-5 text-base leading-relaxed text-muted">
+            Bitcoin, Ethereum and the major currency pairs, streamed in real time with charts for every market. Free to watch, no
+            account needed.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <ButtonLink href="/markets" size="lg">
+              See live prices
+            </ButtonLink>
+            {user ? (
+              <ButtonLink href="/dashboard" size="lg" variant="secondary">
+                Go to dashboard
+              </ButtonLink>
+            ) : (
+              <ButtonLink href="/register" size="lg" variant="secondary">
+                Open an account
+              </ButtonLink>
+            )}
           </div>
         </div>
-      </section>
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="grid md:grid-cols-2 gap-5">
-          <TickerCard title="Popular Forex Pairs" rows={forex} />
-          <TickerCard title="Crypto Prices" rows={crypto} />
+        <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-sm">
+          <div className="flex items-center justify-between border-b border-line px-5 py-3">
+            <p className="text-sm font-semibold">Live prices</p>
+            <p className="text-2xs text-muted">24h change</p>
+          </div>
+          <ul>
+            {board.length === 0 &&
+              BOARD.map((s) => (
+                <li key={s} className="border-b border-line px-5 py-3.5 last:border-0">
+                  <Skeleton className="h-6" />
+                </li>
+              ))}
+            {board.map((r) => {
+              const q = r.quote;
+              const change = q?.change24hPct ?? null;
+              return (
+                <li key={r.symbol} className="border-b border-line last:border-0">
+                  <Link href={`/markets?symbol=${encodeURIComponent(r.symbol)}`} className="grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-4 px-5 py-3 hover:bg-raised">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{r.symbol}</span>
+                      <span className="block truncate text-2xs text-muted">{instrumentName(r.symbol)}</span>
+                    </span>
+                    <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="text-right text-sm font-medium" />
+                    <span className={clsx("text-right text-xs vx-tabular", change == null ? "text-muted" : change >= 0 ? "text-buy" : "text-sell")}>
+                      {change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <Link href="/markets" className="block border-t border-line px-5 py-3 text-center text-xs font-medium text-accent hover:bg-raised">
+            All markets with charts
+          </Link>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t border-[rgb(var(--border))]">
-        <h2 className="text-2xl font-semibold mb-8">Platform features</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="vx-surface rounded-xl p-5">
-              <div className="font-medium mb-2">{f.title}</div>
-              <p className="text-sm vx-muted leading-relaxed">{f.body}</p>
+      <section className="border-t border-line bg-surface">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 md:grid-cols-3 lg:px-8">
+          {POINTS.map(({ icon: Icon, title, body }) => (
+            <div key={title}>
+              <Icon className="h-5 w-5 text-accent" aria-hidden />
+              <h2 className="mt-3 text-base font-semibold">{title}</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
             </div>
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-function TickerCard({ title, rows }: { title: string; rows: ReturnType<typeof useMarkets>["rows"] }) {
-  return (
-    <div className="vx-surface rounded-xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-[rgb(var(--border))] flex items-center justify-between">
-        <span className="font-medium">{title}</span>
-        <Link href="/markets" className="text-xs text-vx-accent hover:underline">
-          View all markets →
-        </Link>
-      </div>
-      <div className="divide-y divide-[rgb(var(--border))]">
-        {rows.length === 0 && (
-          <div className="px-5 py-6 text-sm vx-muted">Connecting to live market data…</div>
-        )}
-        {rows.map((r) => {
-          const q = r.quote;
-          const up = (q?.change24hPct ?? 0) >= 0;
-          return (
-            <div key={r.symbol} className="px-5 py-3 flex items-center justify-between text-sm">
-              <div>
-                <div className="font-medium vx-tabular">{r.symbol}</div>
-                {!r.isExecutable && <div className="text-[10px] vx-muted uppercase tracking-wide">indicative</div>}
-              </div>
-              <div className="flex items-center gap-4">
-                <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="font-medium" />
-                {q?.change24hPct != null && (
-                  <span className={up ? "text-vx-buy text-xs vx-tabular" : "text-vx-sell text-xs vx-tabular"}>
-                    {up ? "+" : ""}
-                    {q.change24hPct.toFixed(2)}%
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

@@ -29,10 +29,10 @@ export function kycDecisionEmail(decision: KycDecision, ctx: KycEmailContext): E
         subject: "Congratulations, your Vertex Trading account is verified",
         text: [
           `Dear ${name},`,
-          "Congratulations! We've reviewed your documents and your identity is now verified. Your account is fully active, including withdrawals.",
+          "Congratulations! We've reviewed your documents and your identity is now verified. Your account is fully active.",
           `Your login details:\nLogin ID: ${ctx.email}\nPassword: the password you chose when you signed up\nLog in: ${ctx.appUrl}/login`,
           `For your security we never send passwords by email. If you've forgotten yours, set a new one here: ${ctx.appUrl}/forgot-password`,
-          "Welcome aboard, and happy trading.",
+          "Welcome aboard.",
           signOff,
         ].join("\n\n"),
       };
@@ -68,9 +68,10 @@ export function welcomeEmail(firstName: string, email: string, appUrl: string): 
     subject: "Welcome to Vertex Trading",
     text: [
       `Dear ${firstName.trim() || "there"},`,
-      "Welcome to Vertex Trading. Your account is open and a demo account with virtual funds is ready for you to practise on.",
+      "Welcome to Vertex Trading. Your account is open.",
+      `You can follow live forex and crypto prices and charts any time: ${appUrl}/markets`,
       `Your login details:\nLogin ID: ${email}\nPassword: the password you chose when you signed up\nLog in: ${appUrl}/login`,
-      `Next step: verify your identity so you can use every feature, including withdrawals. It takes about five minutes: ${appUrl}/kyc`,
+      `Next step: verify your identity to complete your account. It takes about five minutes: ${appUrl}/kyc`,
       "The Vertex Trading team",
     ].join("\n\n"),
   };

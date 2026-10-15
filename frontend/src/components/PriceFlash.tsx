@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import { formatPrice } from "@/lib/format";
 
 /** Renders a numeric price and briefly flashes green/red when it changes up or down. */
 export function PriceFlash({
@@ -37,7 +38,7 @@ export function PriceFlash({
         className
       )}
     >
-      {value != null ? value.toFixed(decimals) : "—"}
+      {formatPrice(value, decimals)}
     </span>
   );
 }

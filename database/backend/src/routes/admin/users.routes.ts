@@ -42,16 +42,15 @@ export function adminUsersRouter() {
       if (!user.rows[0]) throw new ApiError(404, "User not found");
       const { password_hash, ...safe } = user.rows[0];
 
-      const [kyc, accounts, logins] = await Promise.all([
+      const [kyc, logins] = await Promise.all([
         query(`SELECT * FROM kyc_profiles WHERE user_id = ?`, [req.params.id]),
-        query(`SELECT * FROM trading_accounts WHERE user_id = ?`, [req.params.id]),
         query(
           `SELECT action, ip_address, created_at FROM audit_logs WHERE actor_type = 'user' AND actor_id = ? AND action = 'LOGIN' ORDER BY created_at DESC LIMIT 20`,
           [req.params.id]
         ),
       ]);
 
-      res.json({ ...safe, kyc: kyc.rows[0] ?? null, tradingAccounts: accounts.rows, loginHistory: logins.rows });
+      res.json({ ...safe, kyc: kyc.rows[0] ?? null, loginHistory: logins.rows });
     })
   );
 
@@ -111,7 +110,7 @@ export function adminUsersRouter() {
     );
 
   const KYC_MESSAGES: Record<string, (reason?: string) => { title: string; body: string }> = {
-    APPROVED: () => ({ title: "Identity verified", body: "Your identity is verified. Withdrawals are now available." }),
+    APPROVED: () => ({ title: "Identity verified", body: "Your identity is verified. Your account is fully active." }),
     REJECTED: (reason) => ({ title: "Verification declined", body: `We couldn't verify your identity: ${reason}` }),
     ADDITIONAL_INFORMATION_REQUIRED: (reason) => ({ title: "More information needed", body: `Please update your documents: ${reason}` }),
     UNDER_REVIEW: () => ({ title: "Documents under review", body: "We're reviewing your documents." }),

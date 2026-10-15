@@ -23,7 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <div className="max-w-sm">
           <p className="text-xl font-semibold leading-snug">
-            Practise on live forex and crypto prices with $10,000 of virtual funds.
+            Live crypto and forex prices, streamed in real time.
           </p>
           <ul className="mt-8 divide-y divide-line border-y border-line">
             {markets.length === 0

@@ -26,7 +26,7 @@ export function KycBanner() {
       <Notice
         tone="warn"
         icon={<ShieldAlert className="h-4 w-4" />}
-        title={needsChanges ? "Your verification needs changes" : "Verify your identity to unlock withdrawals"}
+        title={needsChanges ? "Your verification needs changes" : "Verify your identity to complete your account"}
         action={
           <ButtonLink href="/kyc" size="sm">
             {needsChanges ? "See what to fix" : "Start verification"}

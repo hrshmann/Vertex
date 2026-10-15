@@ -13,7 +13,7 @@ interface ToastItem {
 
 const ToastContext = createContext<((message: string, tone?: ToastTone) => void) | undefined>(undefined);
 
-/** Short confirmations ("Deposit added") and failures, announced to screen readers. */
+/** Short confirmations ("Profile saved") and failures, announced to screen readers. */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 

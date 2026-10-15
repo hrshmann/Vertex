@@ -13,7 +13,7 @@ type Listener = (evt: WsEvent) => void;
 
 /**
  * One shared WebSocket connection per browser tab. Any connected client receives public
- * market.* events; account.* events (order/position/balance/notification updates) are only
+ * market.* events; account events (notifications) are only
  * sent to sockets authenticated via the vx_access cookie, which the browser attaches to the
  * handshake request automatically — see backend/src/services/ws/wsHub.ts.
  */

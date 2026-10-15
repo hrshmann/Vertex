@@ -7,19 +7,13 @@ import { env } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { apiRateLimiter } from "./middleware/rateLimit";
 import { WsHub } from "./services/ws/wsHub";
-import { DemoTradingEngine } from "./services/trading/demoEngine";
 import { startMarketData } from "./services/marketData";
 import { getAllQuotes } from "./services/marketData/quoteCache";
 import { pool } from "./db/pool";
 
 import { authRouter } from "./routes/auth.routes";
 import { marketsRouter } from "./routes/markets.routes";
-import { accountRouter } from "./routes/account.routes";
-import { ordersRouter } from "./routes/orders.routes";
-import { positionsRouter } from "./routes/positions.routes";
 import { kycRouter } from "./routes/kyc.routes";
-import { depositsRouter } from "./routes/deposits.routes";
-import { withdrawalsRouter } from "./routes/withdrawals.routes";
 import { notificationsRouter } from "./routes/notifications.routes";
 import { complianceRouter } from "./routes/compliance.routes";
 import { adminRouter } from "./routes/admin";
@@ -74,7 +68,6 @@ export async function startServer(options: StartServerOptions = {}) {
   );
 
   const hub = new WsHub(server, env.corsOrigins);
-  const demoEngine = new DemoTradingEngine(hub);
 
   app.get("/health", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
@@ -102,14 +95,9 @@ export async function startServer(options: StartServerOptions = {}) {
     });
   });
 
-  app.use("/api/auth", authRouter(demoEngine));
+  app.use("/api/auth", authRouter());
   app.use("/api/markets", marketsRouter());
-  app.use("/api/account", accountRouter(demoEngine));
-  app.use("/api/orders", ordersRouter(demoEngine));
-  app.use("/api/positions", positionsRouter(demoEngine));
   app.use("/api/kyc", kycRouter());
-  app.use("/api/deposits", depositsRouter(demoEngine));
-  app.use("/api/withdrawals", withdrawalsRouter(demoEngine));
   app.use("/api/notifications", notificationsRouter());
   app.use("/api/compliance", complianceRouter());
   app.use("/api/admin", adminRouter());
@@ -126,7 +114,7 @@ export async function startServer(options: StartServerOptions = {}) {
   app.use(errorHandler);
 
   await checkDatabaseConnection();
-  const marketData = await startMarketData(hub, demoEngine);
+  const marketData = await startMarketData(hub);
 
   server.listen(env.port, "0.0.0.0", () => {
     console.log(`[vertex-trading-backend] listening on configured port (${env.nodeEnv})`);

@@ -26,16 +26,6 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   APPROVED: { label: "Verified", tone: "buy" },
   REJECTED: { label: "Declined", tone: "sell" },
   ADDITIONAL_INFORMATION_REQUIRED: { label: "Action needed", tone: "warn" },
-  // Deposits and withdrawals
-  PROCESSING: { label: "Processing", tone: "accent" },
-  COMPLETED: { label: "Completed", tone: "buy" },
-  FAILED: { label: "Failed", tone: "sell" },
-  // Orders
-  OPEN: { label: "Working", tone: "accent" },
-  FILLED: { label: "Filled", tone: "buy" },
-  PARTIALLY_FILLED: { label: "Part filled", tone: "accent" },
-  CANCELLED: { label: "Cancelled", tone: "neutral" },
-  EXPIRED: { label: "Expired", tone: "neutral" },
 };
 
 export function StatusBadge({ status, labels }: { status: string; labels?: Partial<Record<string, string>> }) {

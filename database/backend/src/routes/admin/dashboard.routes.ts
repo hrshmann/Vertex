@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query } from "../mariaDbQuery";
 import { requireAdmin } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
+import { getAllQuotes } from "../../services/marketData/quoteCache";
 
 export function adminDashboardRouter() {
   const router = Router();
@@ -10,33 +11,32 @@ export function adminDashboardRouter() {
   router.get(
     "/stats",
     asyncHandler(async (_req, res) => {
-      const [
-        totalUsers,
-        verifiedUsers,
-        pendingKyc,
-        tradingAccounts,
-        totalDeposits,
-        pendingWithdrawals,
-        openPositions,
-      ] = await Promise.all([
-        query("SELECT count(*) AS count FROM users"),
-        query("SELECT count(*) AS count FROM users WHERE email_verified_at IS NOT NULL"),
-        query("SELECT count(*) AS count FROM kyc_profiles WHERE status IN ('PENDING','UNDER_REVIEW')"),
-        query("SELECT count(*) AS count FROM trading_accounts"),
-        query("SELECT coalesce(sum(amount),0) AS total FROM deposits WHERE status = 'COMPLETED'"),
-        query("SELECT count(*) AS count FROM withdrawals WHERE status = 'PENDING'"),
-        query("SELECT count(*) AS count FROM positions WHERE status = 'OPEN'"),
+      const [users, kyc, emails] = await Promise.all([
+        query(
+          `SELECT COUNT(*) AS total, SUM(created_at > UTC_TIMESTAMP(6) - INTERVAL 7 DAY) AS new_7d,
+                  SUM(is_suspended) AS suspended
+           FROM users`
+        ),
+        query(`SELECT status, COUNT(*) AS count FROM kyc_profiles GROUP BY status`),
+        query(
+          `SELECT SUM(status = 'SENT') AS sent, SUM(status = 'FAILED') AS failed
+           FROM email_log WHERE created_at > UTC_TIMESTAMP(6) - INTERVAL 7 DAY`
+        ),
       ]);
+      const byStatus = Object.fromEntries(kyc.rows.map((r) => [r.status, Number(r.count)]));
+      const quotes = getAllQuotes();
 
       res.json({
-        totalUsers: Number(totalUsers.rows[0].count),
-        verifiedUsers: Number(verifiedUsers.rows[0].count),
-        pendingKyc: Number(pendingKyc.rows[0].count),
-        tradingAccounts: Number(tradingAccounts.rows[0].count),
-        totalDeposits: Number(totalDeposits.rows[0].total),
-        pendingWithdrawals: Number(pendingWithdrawals.rows[0].count),
-        openPositions: Number(openPositions.rows[0].count),
-        systemStatus: "OPERATIONAL",
+        totalClients: Number(users.rows[0].total ?? 0),
+        newClients7d: Number(users.rows[0].new_7d ?? 0),
+        suspendedClients: Number(users.rows[0].suspended ?? 0),
+        verified: byStatus.APPROVED ?? 0,
+        awaitingReview: byStatus.UNDER_REVIEW ?? 0,
+        waitingOnClient: (byStatus.PENDING ?? 0) + (byStatus.ADDITIONAL_INFORMATION_REQUIRED ?? 0),
+        declined: byStatus.REJECTED ?? 0,
+        emailsSent7d: Number(emails.rows[0].sent ?? 0),
+        emailsFailed7d: Number(emails.rows[0].failed ?? 0),
+        liveMarkets: quotes.length,
       });
     })
   );

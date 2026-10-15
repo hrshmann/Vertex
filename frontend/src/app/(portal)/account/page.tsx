@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// The old account page was split into Overview, Funds and History.
+// Old address; the account overview lives at /dashboard.
 export default function AccountPage() {
   redirect("/dashboard");
 }

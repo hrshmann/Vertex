@@ -7,7 +7,6 @@ import { ApiError } from "../middleware/errorHandler";
 import { authRateLimiter } from "../middleware/rateLimit";
 import { requireAuth } from "../middleware/auth";
 import { logAudit } from "../utils/audit";
-import { DemoTradingEngine } from "../services/trading/demoEngine";
 import { query } from "./mariaDbQuery";
 import { DbConnection, withTransaction } from "../db/pool";
 import { env } from "../config/env";
@@ -19,7 +18,7 @@ import { passwordResetEmail, welcomeEmail } from "../services/mail/templates";
 
 const RESET_TTL_MINUTES = 30;
 
-export function authRouter(demoEngine: DemoTradingEngine) {
+export function authRouter() {
   const router = Router();
   // The strict limiter guards password entry only; /me and /refresh run on every page load.
 
@@ -55,7 +54,7 @@ export function authRouter(demoEngine: DemoTradingEngine) {
 
       const passwordHash = await hashPassword(body.password);
       const userId = crypto.randomUUID();
-      // User, KYC profile and demo account are created together or not at all.
+      // User and KYC profile are created together or not at all.
       try {
         await withTransaction(async (client) => {
           await client.query(
@@ -64,7 +63,6 @@ export function authRouter(demoEngine: DemoTradingEngine) {
             [userId, body.firstName, body.lastName, body.email, body.mobile ?? null, body.country ?? null, passwordHash]
           );
           await client.query(`INSERT INTO kyc_profiles (user_id) VALUES (?)`, [userId]);
-          await demoEngine.ensureDemoAccount(userId, client);
         });
       } catch (err) {
         // A concurrent registration with the same email won the race.

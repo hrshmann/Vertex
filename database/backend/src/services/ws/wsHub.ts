@@ -22,7 +22,7 @@ interface ClientMeta {
 
 /**
  * Thin pub/sub WebSocket hub. Any connected client receives market.* events by default
- * (public data). Account-scoped events (order.*, position.*, balance.*, notification.created)
+ * (public data). Account-scoped events (notification.created)
  * are only sent to the socket that authenticated as that user.
  *
  * Event envelope: { event: string, data: unknown, ts: string }

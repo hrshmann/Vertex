@@ -15,7 +15,6 @@ interface UserDetail {
   country: string | null;
   is_suspended: boolean;
   kyc: { status: string } | null;
-  tradingAccounts: { id: string; mode: string; tier: string; currency: string }[];
   loginHistory: { ip_address: string | null; created_at: string }[];
 }
 
@@ -65,13 +64,6 @@ export default function AdminUserDetailPage() {
         <Link href={`/admin/kyc/${user.id}`} className="text-sm font-medium text-accent hover:underline">
           Review documents
         </Link>
-      </div>
-
-      <div className="vx-surface rounded-xl p-5 mb-5">
-        <div className="text-xs vx-muted uppercase tracking-wide mb-2">Trading accounts</div>
-        {user.tradingAccounts.map((a) => (
-          <div key={a.id} className="text-sm py-1">{a.mode} · {a.tier} · {a.currency}</div>
-        ))}
       </div>
 
       <div className="vx-surface rounded-xl p-5">

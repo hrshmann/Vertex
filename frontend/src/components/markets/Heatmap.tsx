@@ -62,12 +62,20 @@ export function Heatmap({ rows, onSelect, className }: { rows: MarketRow[]; onSe
       <div className="space-y-px bg-line/60 p-px">
         <div className="flex flex-wrap gap-px">
           {lead.map((r, i) => (
-            <Tile key={r.symbol} row={r} size={i < 2 ? "xl" : "wide"} scale={FULL_SCALE_PCT[kind]} onSelect={onSelect} />
+            <Tile key={r.symbol} index={i} row={r} size={i < 2 ? "xl" : "wide"} scale={FULL_SCALE_PCT[kind]} onSelect={onSelect} />
           ))}
         </div>
         <div ref={gridRef} className="flex flex-wrap gap-px">
-          {rest.map((r) => (
-            <Tile key={r.symbol} row={r} size="normal" scale={FULL_SCALE_PCT[kind]} onSelect={onSelect} basis={`calc(${100 / perRow}% - 1px)`} />
+          {rest.map((r, i) => (
+            <Tile
+              key={r.symbol}
+              index={LEAD_TILES + i}
+              row={r}
+              size="normal"
+              scale={FULL_SCALE_PCT[kind]}
+              onSelect={onSelect}
+              basis={`calc(${100 / perRow}% - 1px)`}
+            />
           ))}
         </div>
       </div>
@@ -81,7 +89,9 @@ function Tile({
   scale,
   onSelect,
   basis,
+  index,
 }: {
+  index: number;
   row: MarketRow;
   size: "xl" | "wide" | "normal";
   scale: number;
@@ -98,9 +108,9 @@ function Tile({
       type="button"
       onClick={() => onSelect(row.symbol)}
       title={`${row.symbol} ${change == null ? "" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}`}
-      style={{ background, flexBasis: basis }}
+      style={{ background, flexBasis: basis, "--i": index } as React.CSSProperties}
       className={clsx(
-        "group relative flex min-w-0 grow flex-col items-center justify-center gap-0.5 overflow-hidden px-1 text-center transition-[filter] hover:brightness-125",
+        "vx-cascade-pop group relative flex min-w-0 grow flex-col items-center justify-center gap-0.5 overflow-hidden px-1 text-center transition-[filter] hover:brightness-125",
         size === "xl" && "h-[5.5rem] basis-[45%] sm:h-[7.5rem] sm:basis-[13rem]",
         size === "wide" && "h-[3.75rem] basis-[30%] sm:h-[7.5rem] sm:basis-[8rem]",
         size === "normal" && "h-[3.75rem]"

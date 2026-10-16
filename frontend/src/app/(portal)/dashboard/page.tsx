@@ -13,6 +13,7 @@ import { EmptyState, Skeleton } from "@/components/ui/States";
 import { MarketPulse } from "@/components/markets/MarketPulse";
 import { MarketTable } from "@/components/markets/MarketTable";
 import { Movers } from "@/components/markets/Movers";
+import { Reveal } from "@/components/motion/Reveal";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -50,7 +51,9 @@ export default function DashboardPage() {
         <MarketTable rows={rows} loading={loading} onSelect={open} initialFilter="WATCH" className="flex-1" />
       </section>
 
-      <Movers rows={rows} onSelect={open} />
+      <Reveal>
+        <Movers rows={rows} onSelect={open} />
+      </Reveal>
     </div>
   );
 }

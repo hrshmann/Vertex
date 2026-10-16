@@ -155,9 +155,10 @@ export function MarketTable({
                   </td>
                 </tr>
               ))}
-            {visible.map((r) => (
+            {visible.map((r, i) => (
               <Row
                 key={r.symbol}
+                index={i}
                 row={r}
                 active={selected === r.symbol}
                 watched={isWatched(r.symbol)}
@@ -209,6 +210,7 @@ function SortHeader({
 }
 
 function Row({
+  index,
   row,
   active,
   watched,
@@ -216,6 +218,7 @@ function Row({
   onSelect,
   spark,
 }: {
+  index: number;
   row: MarketRow;
   active: boolean;
   watched: boolean;
@@ -228,7 +231,7 @@ function Row({
   const daily = isDailyRate(q?.source);
   const cell = clsx("border-b border-line/60 py-1.5 transition-colors", active ? "bg-accent/10" : "group-hover:bg-raised/60");
   return (
-    <tr onClick={onSelect} className="group cursor-pointer" aria-selected={active}>
+    <tr onClick={onSelect} style={{ "--i": index } as React.CSSProperties} className="vx-row-in group cursor-pointer" aria-selected={active}>
       <td className={clsx(cell, "relative pl-2")}>
         {active && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-accent" />}
         <StarButton active={watched} onClick={onToggleWatch} symbol={row.symbol} />

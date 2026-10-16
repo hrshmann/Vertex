@@ -7,7 +7,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "buy" | "sell";
 type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-accent text-accent-ink hover:bg-accent/90",
+  primary: "vx-shine bg-accent text-accent-ink shadow-[0_0_24px_-6px_rgb(var(--accent)/0.7)] hover:bg-accent/90 hover:shadow-[0_0_32px_-4px_rgb(var(--accent)/0.9)]",
   secondary: "bg-surface text-ink border border-line hover:bg-raised",
   ghost: "text-muted hover:text-ink hover:bg-raised",
   danger: "bg-sell text-white hover:bg-sell/90",
@@ -30,7 +30,7 @@ interface CommonProps {
 
 export function buttonClass({ variant = "primary", size = "md", className }: Omit<CommonProps, "children">) {
   return clsx(
-    "inline-flex items-center justify-center rounded-control font-medium whitespace-nowrap transition-colors",
+    "inline-flex items-center justify-center rounded-control font-medium whitespace-nowrap transition-[color,background-color,box-shadow,border-color]",
     "disabled:opacity-50 disabled:pointer-events-none",
     VARIANTS[variant],
     SIZES[size],

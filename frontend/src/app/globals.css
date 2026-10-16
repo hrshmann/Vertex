@@ -67,12 +67,8 @@ html {
   color: rgb(var(--ink));
 }
 
-/* Two soft glows across the top of the page, blue left and violet right. */
+/* The glows across the top of the page are drawn by <Backdrop />, which animates them. */
 body {
-  background-image:
-    radial-gradient(64rem 30rem at 12% -6rem, rgb(var(--accent) / 0.16), transparent 70%),
-    radial-gradient(52rem 28rem at 92% -4rem, rgb(var(--glow) / 0.13), transparent 70%);
-  background-repeat: no-repeat;
   font-feature-settings: "tnum" 1; /* every figure lines up in columns */
 }
 
@@ -123,6 +119,7 @@ body::before {
   }
   /* A panel on the grid background: slightly see-through, with a hairline highlight on top. */
   .vx-panel {
+    position: relative;
     background-color: rgb(var(--surface) / 0.82);
     border: 1px solid rgb(var(--line));
     box-shadow:

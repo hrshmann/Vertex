@@ -51,7 +51,7 @@ export function Navbar() {
               key={l.href}
               href={l.href}
               aria-current={pathname === l.href ? "page" : undefined}
-              className={clsx("transition-colors hover:text-ink", pathname === l.href ? "text-ink" : "text-muted")}
+              className={clsx("vx-underline transition-colors hover:text-ink", pathname === l.href ? "text-ink" : "text-muted")}
             >
               {l.label}
             </Link>
@@ -72,6 +72,9 @@ export function Navbar() {
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
+
+      {/* How far down the page you are. */}
+      <div aria-hidden className="vx-scroll-progress absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-accent via-glow to-accent" />
 
       {open && (
         <div className="space-y-1 border-t border-line bg-surface px-4 py-4 md:hidden">

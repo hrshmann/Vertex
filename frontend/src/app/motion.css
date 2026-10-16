@@ -1,0 +1,287 @@
+/*
+ * Motion. Everything here is decoration: it is switched off for visitors who ask for reduced
+ * motion, and content is only hidden before its reveal when <html data-motion="on">, which an
+ * inline script sets before first paint (MOTION_INIT_SCRIPT in components/motion/motion.ts).
+ */
+
+/* Cursor spotlight: a glowing border that follows the pointer around a panel (PointerGlow). */
+.vx-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0; /* inside the border: panels clip their overflow */
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 0%),
+    rgb(var(--accent) / 0.9),
+    rgb(var(--glow) / 0.35) 35%,
+    transparent 70%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.vx-panel.is-lit::before {
+  opacity: 1;
+}
+/* ...a wash of light under the content at the same spot, and a soft glow around the panel. */
+.vx-panel {
+  transition: box-shadow 400ms ease;
+}
+.vx-panel.is-lit {
+  background-image: radial-gradient(28rem circle at var(--mx) var(--my), rgb(var(--accent) / 0.1), transparent 65%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 0 0 1px rgb(var(--accent) / 0.18),
+    0 18px 50px -20px rgb(var(--accent) / 0.45);
+}
+
+/* Scroll reveal: [data-reveal] rises out of a blur when it enters the screen (Reveal). */
+[data-motion="on"] [data-reveal] {
+  transition:
+    opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-motion="on"] [data-reveal]:not(.is-in) {
+  opacity: 0;
+  transform: translateY(28px) scale(0.985);
+  filter: blur(8px);
+}
+
+/* Children that cascade in once their section is revealed; --i is the child's position. */
+@keyframes vx-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+  }
+}
+@keyframes vx-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+[data-motion="on"] .is-in .vx-cascade-pop {
+  animation: vx-pop 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 60) * 14ms + 150ms);
+}
+[data-motion="on"] .is-in .vx-cascade-slide {
+  animation: vx-slide 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 200ms);
+}
+[data-motion="on"] [data-reveal]:not(.is-in) :is(.vx-cascade-pop, .vx-cascade-slide) {
+  opacity: 0;
+}
+
+/* Table rows fade in one after another as they mount (first load, filter and sort changes). */
+@keyframes vx-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+[data-motion="on"] .vx-row-in {
+  animation: vx-row-in 500ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 24) * 22ms);
+}
+
+/* Headline words rise out of a mask, one after another (SplitWords). */
+@keyframes vx-word-rise {
+  from {
+    transform: translateY(110%) rotate(4deg);
+    opacity: 0;
+  }
+}
+.vx-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.08em; /* keeps descenders inside the mask */
+  margin-bottom: -0.08em;
+}
+.vx-word > span {
+  display: inline-block;
+}
+[data-motion="on"] .vx-word > span {
+  animation: vx-word-rise 1100ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms + 100ms);
+}
+
+/* Pages ease in on navigation (app/(marketing)/template.tsx, app/(portal)/template.tsx). */
+@keyframes vx-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+[data-motion="on"] .vx-page-in {
+  animation: vx-page-in 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* A line that draws itself (the hero's price line, HeroLine). */
+@keyframes vx-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes vx-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+[data-motion="on"] .vx-draw {
+  stroke-dasharray: 1;
+  animation: vx-draw 2600ms cubic-bezier(0.65, 0, 0.35, 1) 300ms both;
+}
+[data-motion="on"] .vx-draw-fill {
+  animation: vx-fade-in 1600ms ease 1800ms both;
+}
+
+/* Living background (Backdrop): drifting glows, a scan beam and pulses along the grid. */
+@keyframes vx-drift-a {
+  50% {
+    transform: translate3d(8vw, 6vh, 0) scale(1.15);
+  }
+}
+@keyframes vx-drift-b {
+  50% {
+    transform: translate3d(-10vw, 8vh, 0) scale(0.9);
+  }
+}
+@keyframes vx-drift-c {
+  50% {
+    transform: translate3d(6vw, -4vh, 0) scale(1.2);
+  }
+}
+@keyframes vx-scan {
+  from {
+    transform: translateY(-10vh);
+  }
+  to {
+    transform: translateY(110vh);
+  }
+}
+@keyframes vx-pulse-x {
+  from {
+    transform: translateX(-30vw);
+  }
+  to {
+    transform: translateX(130vw);
+  }
+}
+@keyframes vx-pulse-y {
+  from {
+    transform: translateY(-30vh);
+  }
+  to {
+    transform: translateY(130vh);
+  }
+}
+.vx-drift-a {
+  animation: vx-drift-a 26s ease-in-out infinite;
+}
+.vx-drift-b {
+  animation: vx-drift-b 32s ease-in-out infinite;
+}
+.vx-drift-c {
+  animation: vx-drift-c 38s ease-in-out infinite;
+}
+.vx-scan {
+  animation: vx-scan 11s linear infinite;
+}
+.vx-pulse-x {
+  animation: vx-pulse-x var(--dur, 9s) linear var(--delay, 0s) infinite both;
+}
+.vx-pulse-y {
+  animation: vx-pulse-y var(--dur, 9s) linear var(--delay, 0s) infinite both;
+}
+
+/* Thin progress line under the site header, driven by page scroll where supported. */
+@keyframes vx-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.vx-scroll-progress {
+  display: none;
+}
+@supports (animation-timeline: scroll()) {
+  .vx-scroll-progress {
+    display: block;
+    transform-origin: left;
+    animation: vx-progress linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+/* Light sweeping across primary buttons on hover. */
+.vx-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.vx-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vx-shine:hover::after {
+  transform: translateX(120%);
+}
+
+/* Nav links: an underline slides in from the left. */
+.vx-underline {
+  position: relative;
+}
+.vx-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--accent)), rgb(var(--glow)));
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vx-underline:hover::after,
+.vx-underline[aria-current="page"]::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-drift-a,
+  .vx-drift-b,
+  .vx-drift-c,
+  .vx-scroll-progress {
+    animation: none;
+  }
+  .vx-scan,
+  .vx-pulse-x,
+  .vx-pulse-y,
+  .vx-shine::after {
+    display: none;
+  }
+}

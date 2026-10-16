@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { Activity } from "lucide-react";
 import { formatCompact, formatPrice, priceDecimals } from "@/lib/format";
 import { MarketRow } from "@/lib/types";
+import { CountUp } from "@/components/motion/CountUp";
 import { AssetIcon, Change, usdVolume } from "./parts";
 
 /**
@@ -28,7 +29,7 @@ export function MarketPulse({ rows, onSelect, className }: { rows: MarketRow[]; 
       <Cell label="Markets">
         <span className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-accent" aria-hidden />
-          <span className="font-mono text-base font-semibold">{rows.length || "—"}</span>
+          <CountUp value={rows.length || null} className="font-mono text-base font-semibold" />
           <span className="text-2xs text-muted">{live} streaming</span>
         </span>
       </Cell>
@@ -44,7 +45,7 @@ export function MarketPulse({ rows, onSelect, className }: { rows: MarketRow[]; 
       <Mover label="Top gainer" row={best} onSelect={onSelect} />
       <Mover label="Top loser" row={worst} onSelect={onSelect} />
       <Cell label="Crypto volume (24h)">
-        <span className="font-mono text-base font-semibold">{volume ? formatCompact(volume, "$") : "—"}</span>
+        <CountUp value={volume || null} format={(n) => formatCompact(n, "$")} className="font-mono text-base font-semibold" />
       </Cell>
       <Cell label="Avg crypto move">
         <Change value={avg} className="text-base font-semibold" />

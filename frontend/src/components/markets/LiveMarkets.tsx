@@ -16,6 +16,8 @@ import { MarketPulse } from "./MarketPulse";
 import { MarketTable } from "./MarketTable";
 import { Movers } from "./Movers";
 import { AssetIcon, Change, RangeBar, StarButton, usdVolume } from "./parts";
+import { Reveal } from "@/components/motion/Reveal";
+import { Scramble } from "@/components/motion/Scramble";
 
 /**
  * The price terminal: market-wide figures, every market in a sortable list beside the chart
@@ -63,8 +65,12 @@ export function LiveMarkets() {
         </section>
       </div>
 
-      <Movers rows={rows} onSelect={select} />
-      <Heatmap rows={rows} onSelect={select} />
+      <Reveal>
+        <Movers rows={rows} onSelect={select} />
+      </Reveal>
+      <Reveal>
+        <Heatmap rows={rows} onSelect={select} />
+      </Reveal>
     </div>
   );
 }
@@ -86,7 +92,7 @@ function Detail({ row }: { row: MarketRow }) {
           <AssetIcon symbol={row.symbol} size="lg" />
           <div className="min-w-0">
             <h2 className="flex items-center gap-1 font-mono text-base font-semibold">
-              {row.symbol}
+              <Scramble text={row.symbol} duration={450} />
               <StarButton active={isWatched(row.symbol)} onClick={() => toggle(row.symbol)} symbol={row.symbol} />
             </h2>
             <p className="truncate text-xs text-muted">{instrumentName(row.symbol)}</p>

@@ -53,10 +53,10 @@ function List({
       </h2>
       <ul>
         {rows.length === 0 && <li className="px-4 py-6 text-center text-xs text-muted">Waiting for prices…</li>}
-        {rows.map((r) => {
+        {rows.map((r, i) => {
           const spark = sparklines[r.symbol];
           return (
-            <li key={r.symbol} className="border-b border-line/60 last:border-0">
+            <li key={r.symbol} style={{ "--i": i } as React.CSSProperties} className="vx-cascade-slide border-b border-line/60 last:border-0">
               <button
                 type="button"
                 onClick={() => onSelect(r.symbol)}

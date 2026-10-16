@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Sans_Condensed, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "./motion.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/ThemeContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import { Backdrop } from "@/components/motion/Backdrop";
+import { PointerGlow } from "@/components/motion/PointerGlow";
+import { MOTION_INIT_SCRIPT } from "@/components/motion/motion";
 
 const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex" });
 const plexCondensed = IBM_Plex_Sans_Condensed({
@@ -33,8 +37,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Applies the saved or system theme before first paint, so the page never flashes. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Turns on entrance animations, unless the visitor prefers reduced motion. */}
+        <script dangerouslySetInnerHTML={{ __html: MOTION_INIT_SCRIPT }} />
       </head>
       <body className={`${plex.variable} ${plexCondensed.variable} ${mono.variable} font-sans antialiased min-h-screen`}>
+        <Backdrop />
+        <PointerGlow />
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>{children}</ToastProvider>

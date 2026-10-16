@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getInstrumentBySymbol, listInstruments } from "../services/marketData/instrumentCache";
 import { getAllQuotes, getQuote } from "../services/marketData/quoteCache";
 import { getCandles, UnsupportedCandleRequest } from "../services/marketData/candles";
+import { getSparklines } from "../services/marketData/sparklines";
 import { asyncHandler } from "../utils/asyncHandler";
 import { parseLimit } from "../utils/pagination";
 import { ApiError } from "../middleware/errorHandler";
@@ -31,6 +32,11 @@ export function marketsRouter() {
       );
     })
   );
+
+  // Price history lines for the market list; refreshed server-side every few minutes.
+  router.get("/sparklines", (_req, res) => {
+    res.json(getSparklines());
+  });
 
   router.get(
     "/:symbol/quote",

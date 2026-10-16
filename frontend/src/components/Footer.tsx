@@ -16,8 +16,8 @@ const LEGAL_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-[rgb(var(--border))] vx-surface mt-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+    <footer className="mt-12 border-t border-line bg-surface/70 backdrop-blur">
+      <div className="mx-auto max-w-[1680px] px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 font-semibold mb-3">

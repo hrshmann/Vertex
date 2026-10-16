@@ -1,17 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import clsx from "clsx";
+import { useRouter } from "next/navigation";
 import { CandlestickChart, Radio, ShieldCheck } from "lucide-react";
 import { useMarkets } from "@/lib/useMarkets";
 import { useAuth } from "@/lib/AuthContext";
-import { priceDecimals } from "@/lib/format";
-import { instrumentName } from "@/lib/instruments";
-import { PriceFlash } from "@/components/PriceFlash";
 import { ButtonLink } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/States";
-
-const BOARD = ["BTC/USD", "ETH/USD", "SOL/USD", "XRP/USD", "EUR/USD", "GBP/USD", "USD/JPY"];
+import { Heatmap } from "@/components/markets/Heatmap";
+import { MarketPulse } from "@/components/markets/MarketPulse";
+import { MarketTable } from "@/components/markets/MarketTable";
+import { Movers } from "@/components/markets/Movers";
 
 const POINTS = [
   {
@@ -22,7 +19,7 @@ const POINTS = [
   {
     icon: CandlestickChart,
     title: "Charts for every market",
-    body: "Candlestick charts from one minute to one month, updating live as new prices arrive.",
+    body: "Candlestick charts with volume, from one minute to one month, updating live as new prices arrive.",
   },
   {
     icon: ShieldCheck,
@@ -32,28 +29,32 @@ const POINTS = [
 ];
 
 export default function HomePage() {
-  const { rows } = useMarkets();
+  const { rows, loading } = useMarkets();
   const { user } = useAuth();
-  const board = BOARD.map((s) => rows.find((r) => r.symbol === s)).filter((r): r is NonNullable<typeof r> => !!r);
+  const router = useRouter();
+  const open = (symbol: string) => router.push(`/markets?symbol=${encodeURIComponent(symbol)}`);
+  const crypto = rows.filter((r) => r.class === "CRYPTO").length;
+  const forex = rows.filter((r) => r.class === "FOREX").length;
 
   return (
-    <div>
-      <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-14 sm:px-6 md:pt-20 lg:grid-cols-[minmax(0,1fr)_30rem] lg:px-8">
-        <div className="max-w-xl">
-          <p className="flex items-center gap-2 text-sm font-medium text-buy">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-buy" aria-hidden />
-            Markets are live
+    <div className="mx-auto max-w-[1680px] space-y-3 px-3 pb-4 pt-6 sm:px-4 lg:px-6 lg:pt-8">
+      <section className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-8">
+        <div className="flex flex-col justify-center py-4 lg:py-10 lg:pl-2">
+          <p className="inline-flex w-fit items-center gap-2 rounded-full border border-buy/30 bg-buy/10 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-buy">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-buy" aria-hidden />
+            {rows.length ? `${rows.length} markets live` : "Markets are live"}
           </p>
-          <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.1] tracking-tight md:text-5xl">
-            Crypto and forex prices, the moment they move.
+          <h1 className="mt-5 text-[2.5rem] font-semibold leading-[1.05] tracking-tight md:text-[3.5rem]">
+            Crypto and forex prices,{" "}
+            <span className="bg-gradient-to-r from-accent to-glow bg-clip-text text-transparent">the moment they move.</span>
           </h1>
-          <p className="mt-5 text-base leading-relaxed text-muted">
-            Bitcoin, Ethereum and the major currency pairs, streamed in real time with charts for every market. Free to watch, no
-            account needed.
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted">
+            {crypto || 71} cryptocurrencies and {forex || 44} currency pairs, streamed in real time with charts, movers and a market heatmap.
+            Free to watch, no account needed.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap gap-3">
             <ButtonLink href="/markets" size="lg">
-              See live prices
+              Open the live terminal
             </ButtonLink>
             {user ? (
               <ButtonLink href="/dashboard" size="lg" variant="secondary">
@@ -65,55 +66,39 @@ export default function HomePage() {
               </ButtonLink>
             )}
           </div>
+          <dl className="mt-8 grid max-w-lg grid-cols-3 divide-x divide-line rounded-panel border border-line bg-surface/50">
+            {[
+              { label: "Markets", value: rows.length || "—" },
+              { label: "Updates", value: "2/s" },
+              { label: "Timeframes", value: "1m–1M" },
+            ].map((s) => (
+              <div key={s.label} className="px-4 py-3">
+                <dt className="vx-caption">{s.label}</dt>
+                <dd className="mt-0.5 font-mono text-lg font-semibold">{s.value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
 
-        <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-sm">
-          <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <p className="text-sm font-semibold">Live prices</p>
-            <p className="text-2xs text-muted">24h change</p>
-          </div>
-          <ul>
-            {board.length === 0 &&
-              BOARD.map((s) => (
-                <li key={s} className="border-b border-line px-5 py-3.5 last:border-0">
-                  <Skeleton className="h-6" />
-                </li>
-              ))}
-            {board.map((r) => {
-              const q = r.quote;
-              const change = q?.change24hPct ?? null;
-              return (
-                <li key={r.symbol} className="border-b border-line last:border-0">
-                  <Link href={`/markets?symbol=${encodeURIComponent(r.symbol)}`} className="grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-4 px-5 py-3 hover:bg-raised">
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{r.symbol}</span>
-                      <span className="block truncate text-2xs text-muted">{instrumentName(r.symbol)}</span>
-                    </span>
-                    <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="text-right text-sm font-medium" />
-                    <span className={clsx("text-right text-xs vx-tabular", change == null ? "text-muted" : change >= 0 ? "text-buy" : "text-sell")}>
-                      {change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <Link href="/markets" className="block border-t border-line px-5 py-3 text-center text-xs font-medium text-accent hover:bg-raised">
-            All markets with charts
-          </Link>
-        </div>
+        <section aria-label="Live prices" className="vx-panel flex h-[34rem] flex-col overflow-hidden rounded-panel lg:h-[38rem]">
+          <MarketTable rows={rows} loading={loading} onSelect={open} className="flex-1" />
+        </section>
       </section>
 
-      <section className="border-t border-line bg-surface">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 md:grid-cols-3 lg:px-8">
-          {POINTS.map(({ icon: Icon, title, body }) => (
-            <div key={title}>
+      <MarketPulse rows={rows} onSelect={open} />
+      <Movers rows={rows} onSelect={open} />
+      <Heatmap rows={rows} onSelect={open} />
+
+      <section className="grid gap-3 md:grid-cols-3">
+        {POINTS.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="vx-panel rounded-panel p-5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-control bg-accent/10">
               <Icon className="h-5 w-5 text-accent" aria-hidden />
-              <h2 className="mt-3 text-base font-semibold">{title}</h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
-            </div>
-          ))}
-        </div>
+            </span>
+            <h2 className="mt-3 text-base font-semibold">{title}</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
+          </div>
+        ))}
       </section>
     </div>
   );

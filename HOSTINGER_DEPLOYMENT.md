@@ -90,7 +90,7 @@ Running the command again with the same email resets that admin's password.
    website (`next build`). It can take a few minutes.
 6. In **Runtime Logs**, you should see:
    ```text
-   [instruments] loaded 12 instruments
+   [instruments] loaded 115 instruments
    [vertex-trading-backend] listening on configured port (production)
    [vertex-trading-backend] serving the website on the same address
    [coinbase] connected
@@ -205,4 +205,5 @@ that origin, and `CORS_ORIGIN` on the API must list the website's origin.
 - Email needs a mailbox (step 6) before welcome, decision and password reset emails are sent.
 - Legal pages show placeholder text (`database/migrations/003_seed_compliance.sql`). Replace it
   with text for your licensed entity and jurisdiction.
-- Forex prices are indicative only. USD/JPY and NZD/USD use the daily ECB rate (see `README.md`).
+- Forex prices are indicative only. Pairs Kraken doesn't quote liquidly (USD/JPY, NZD/USD, the
+  crosses and emerging-market pairs) use the daily ECB rate (see `README.md`).

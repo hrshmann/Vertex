@@ -54,23 +54,24 @@ export function isMarketSocketOpen(): boolean {
   return sharedSocket?.readyState === WebSocket.OPEN;
 }
 
+/** Listens to the shared socket outside React; returns the unsubscribe function. */
+export function subscribeMarketSocket(listener: Listener): () => void {
+  if (!marketSocketUrl()) return () => {};
+  listeners.add(listener);
+  ensureSocket();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && sharedSocket) {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      sharedSocket.close();
+      sharedSocket = null;
+    }
+  };
+}
+
 export function useMarketSocket(onEvent: Listener) {
   const handlerRef = useRef(onEvent);
   handlerRef.current = onEvent;
 
-  useEffect(() => {
-    if (!marketSocketUrl()) return;
-    const wrapped: Listener = (evt) => handlerRef.current(evt);
-    listeners.add(wrapped);
-    ensureSocket();
-
-    return () => {
-      listeners.delete(wrapped);
-      if (listeners.size === 0 && sharedSocket) {
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        sharedSocket.close();
-        sharedSocket = null;
-      }
-    };
-  }, []);
+  useEffect(() => subscribeMarketSocket((evt) => handlerRef.current(evt)), []);
 }

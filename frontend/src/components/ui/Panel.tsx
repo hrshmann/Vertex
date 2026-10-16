@@ -19,7 +19,7 @@ export function Panel({
   as?: "section" | "div";
 }) {
   return (
-    <Tag className={clsx("rounded-panel border border-line bg-surface", className)}>
+    <Tag className={clsx("vx-panel rounded-panel", className)}>
       {(title || actions) && (
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0">

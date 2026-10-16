@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { KycProvider, useKyc } from "@/lib/usePortalData";
 import { NotificationsMenu, ThemeToggle, UserMenu } from "./HeaderMenus";
 import { KycBanner } from "./KycBanner";
+import { TickerTape } from "@/components/markets/TickerTape";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
@@ -17,6 +18,9 @@ const NAV = [
   { href: "/kyc", label: "Verification", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+/** Data pages use the full screen width; forms and account pages stay at a readable width. */
+const WIDE_PAGES = ["/prices", "/dashboard"];
 
 /** Tabs on phones; Settings lives in the account menu there. */
 const MOBILE_NAV = NAV.filter((n) => n.href !== "/settings");
@@ -42,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <KycProvider>
       <div className="min-h-screen">
         <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur">
-          <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+          <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-6 px-4 sm:px-6">
             <Link href="/dashboard" className="flex shrink-0 items-center gap-2 font-semibold">
               <Logo className="h-6 w-6" />
               Vertex Trading
@@ -55,7 +59,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 lg:pb-16">
+        <TickerTape href="/prices" />
+        <main
+          className={clsx(
+            "mx-auto px-3 pb-28 sm:px-4 lg:pb-12",
+            WIDE_PAGES.includes(pathname) ? "max-w-[1680px] pt-3 lg:px-6" : "max-w-6xl pt-8 sm:px-6"
+          )}
+        >
           {/* Verification has its own page, and the overview already shows it. */}
           {pathname !== "/kyc" && pathname !== "/dashboard" && <KycBanner />}
           {children}

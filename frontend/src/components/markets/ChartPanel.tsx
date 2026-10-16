@@ -31,14 +31,22 @@ interface Candle {
   volume: number;
 }
 
-export function ChartPanel({ symbol }: { symbol: string }) {
+/**
+ * Candlestick chart with volume for one market, updated live from price ticks. `dailyOnly`
+ * markets (priced from a once-a-day reference rate) only have daily history, so intraday
+ * timeframes are disabled for them.
+ */
+export function ChartPanel({ symbol, dailyOnly = false }: { symbol: string; dailyOnly?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const { theme } = useTheme();
-  const [timeframe, setTimeframe] = useState<Timeframe>("1H");
+  const [chosen, setTimeframe] = useState<Timeframe>("1H");
+  const timeframe: Timeframe = dailyOnly && TIMEFRAME_SECONDS[chosen] < 86_400 ? "1D" : chosen;
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<{ provider: string; isIndicative: boolean } | null>(null);
+  const volumeColors = useRef({ up: "rgba(30, 214, 150, 0.3)", down: "rgba(255, 82, 110, 0.3)" });
   const lastBarRef = useRef<{ time: UTCTimestamp; open: number; high: number; low: number; close: number } | null>(
     null
   );
@@ -49,20 +57,27 @@ export function ChartPanel({ symbol }: { symbol: string }) {
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        fontFamily: getComputedStyle(document.body).fontFamily,
+        fontFamily: getComputedStyle(document.body).getPropertyValue("--font-mono") || "monospace",
+        fontSize: 11,
       },
       timeScale: { timeVisible: true },
       crosshair: { mode: 0 },
       autoSize: true,
     });
     const series = chart.addCandlestickSeries({ borderVisible: false });
+    series.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.24 } });
+    // Volume bars along the bottom fifth, on their own hidden scale.
+    const volume = chart.addHistogramSeries({ priceScaleId: "volume", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
+    chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
     chartRef.current = chart;
     seriesRef.current = series;
+    volumeRef.current = volume;
 
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeRef.current = null;
     };
   }, []);
 
@@ -77,10 +92,15 @@ export function ChartPanel({ symbol }: { symbol: string }) {
     const color = (name: string, alpha = 1) => `rgba(${css.getPropertyValue(`--${name}`).trim().split(/\s+/).join(", ")}, ${alpha})`;
     chart.applyOptions({
       layout: { textColor: color("muted") },
-      grid: { vertLines: { color: color("line", 0.5) }, horzLines: { color: color("line", 0.5) } },
+      grid: { vertLines: { color: color("line", 0.35) }, horzLines: { color: color("line", 0.35) } },
       rightPriceScale: { borderColor: color("line") },
       timeScale: { borderColor: color("line") },
+      crosshair: {
+        vertLine: { color: color("accent", 0.5), labelBackgroundColor: color("accent") },
+        horzLine: { color: color("accent", 0.5), labelBackgroundColor: color("accent") },
+      },
     });
+    volumeColors.current = { up: color("buy", 0.3), down: color("sell", 0.3) };
     series.applyOptions({
       upColor: color("buy"),
       downColor: color("sell"),
@@ -123,11 +143,22 @@ export function ChartPanel({ symbol }: { symbol: string }) {
             close: c.close,
           }))
         );
+        const hasVolume = res.candles.some((c) => c.volume > 0);
+        volumeRef.current?.setData(
+          hasVolume
+            ? res.candles.map((c) => ({
+                time: (Date.parse(c.openTime) / 1000) as UTCTimestamp,
+                value: c.volume,
+                color: c.close >= c.open ? volumeColors.current.up : volumeColors.current.down,
+              }))
+            : []
+        );
         chartRef.current?.timeScale().fitContent();
       })
       .catch((err) => {
         setError(err instanceof ApiRequestError ? err.message : "Failed to load candles");
         seriesRef.current?.setData([]);
+        volumeRef.current?.setData([]);
       });
   }, [symbol, timeframe]);
 
@@ -164,20 +195,25 @@ export function ChartPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-[rgb(var(--border))]">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-3 py-1.5">
         <div className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1">
-          {TIMEFRAMES.map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              aria-pressed={timeframe === tf}
-              className={`shrink-0 rounded-[6px] px-2 py-1 text-xs font-medium transition-colors ${
-                timeframe === tf ? "bg-accent-soft text-accent" : "text-muted hover:text-ink"
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
+          {TIMEFRAMES.map((tf) => {
+            const unavailable = dailyOnly && TIMEFRAME_SECONDS[tf] < 86_400;
+            return (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                disabled={unavailable}
+                title={unavailable ? "Only daily rates are available for this pair" : undefined}
+                aria-pressed={timeframe === tf}
+                className={`shrink-0 rounded-[6px] px-2 py-1 font-mono text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                  timeframe === tf ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"
+                }`}
+              >
+                {tf}
+              </button>
+            );
+          })}
         </div>
         {source && (
           <span className="hidden shrink-0 text-2xs text-muted sm:inline">
@@ -186,7 +222,7 @@ export function ChartPanel({ symbol }: { symbol: string }) {
           </span>
         )}
       </div>
-      <div className="relative flex-1 min-h-[320px]">
+      <div className="relative min-h-[260px] flex-1">
         {error && (
           <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm vx-muted">
             {error}

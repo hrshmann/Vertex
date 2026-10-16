@@ -3,20 +3,22 @@ import { LiveMarkets } from "@/components/markets/LiveMarkets";
 
 export default function MarketsPage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-xl font-semibold">Live prices</h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted">
-        Crypto prices stream from Coinbase and forex rates from Kraken, updated several times a second. Pick a market to see its chart.
-      </p>
-      <div className="mt-6">
+    <div>
+      <div className="mx-auto max-w-[1680px] px-3 pb-8 pt-3 sm:px-4 lg:px-6">
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <h1 className="text-base font-semibold">Live prices</h1>
+          <p className="text-xs text-muted">
+            Crypto streams from Coinbase and forex from Kraken, several times a second. Pick a market to see its chart.
+          </p>
+        </div>
         <Suspense>
           <LiveMarkets />
         </Suspense>
+        <p className="mt-3 max-w-4xl text-2xs text-muted">
+          Prices are for information only and may differ slightly from those of other providers. Forex rates are indicative; pairs marked
+          Daily use the European Central Bank&apos;s reference rate, published once each business day.
+        </p>
       </div>
-      <p className="mt-4 max-w-3xl text-2xs text-muted">
-        Prices are for information only and may differ slightly from those of other providers. Forex rates are indicative; USD/JPY and
-        NZD/USD use the European Central Bank's daily reference rate.
-      </p>
     </div>
   );
 }

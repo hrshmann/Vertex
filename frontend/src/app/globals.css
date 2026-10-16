@@ -7,22 +7,29 @@
  * Light is the calm account workspace; dark is tuned for long trading sessions.
  * Green and red mean buy/sell and profit/loss only, never decoration.
  */
+/*
+ * Vertex palette. Values are "R G B" so Tailwind can apply opacity (bg-accent/10).
+ * Dark is the default terminal look: near-black navy, electric-blue accent, a violet second
+ * glow (the logo's two colours) and a faint grid. Green and red mean up/down only.
+ */
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  --canvas: 242 244 249;
+  --canvas: 238 242 249;
   --surface: 255 255 255;
-  --raised: 246 247 252;
-  --line: 224 228 238;
-  --ink: 18 22 28;
-  --muted: 94 102 117;
-  --accent: 76 91 212;
-  --accent-soft: 236 238 252;
+  --raised: 244 246 251;
+  --line: 219 225 237;
+  --ink: 13 18 30;
+  --muted: 88 98 118;
+  --accent: 37 99 235;
+  --accent-soft: 230 238 254;
   --accent-ink: 255 255 255;
-  --buy: 11 143 98;
-  --buy-soft: 230 245 239;
-  --sell: 208 56 78;
-  --sell-soft: 251 235 238;
+  --glow: 124 92 255;
+  --grid: 37 60 120;
+  --buy: 5 150 105;
+  --buy-soft: 226 246 238;
+  --sell: 220 38 76;
+  --sell-soft: 253 233 238;
   --warn: 168 107 0;
   --warn-soft: 252 243 224;
 
@@ -35,37 +42,54 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --canvas: 9 13 26;
-  --surface: 15 21 38;
-  --raised: 22 30 52;
-  --line: 33 42 66;
-  --ink: 230 234 243;
-  --muted: 139 150 176;
-  --accent: 140 151 255;
-  --accent-soft: 31 37 78;
-  --accent-ink: 9 13 26;
-  --buy: 39 194 140;
-  --buy-soft: 16 46 37;
-  --sell: 255 99 119;
-  --sell-soft: 56 22 30;
+  --canvas: 4 7 16;
+  --surface: 10 15 30;
+  --raised: 17 24 44;
+  --line: 28 38 64;
+  --ink: 230 236 248;
+  --muted: 130 144 172;
+  --accent: 77 157 255;
+  --accent-soft: 15 35 68;
+  --accent-ink: 3 8 20;
+  --glow: 134 98 255;
+  --grid: 90 130 220;
+  --buy: 30 214 150;
+  --buy-soft: 10 46 36;
+  --sell: 255 82 110;
+  --sell-soft: 58 16 28;
   --warn: 240 180 60;
   --warn-soft: 52 40 16;
 }
 
-html,
-body {
+/* The page colour sits on <html> so the grid layer below can paint between it and the content. */
+html {
   background-color: rgb(var(--canvas));
   color: rgb(var(--ink));
 }
 
-/* A soft accent glow behind the top of every page, so the background isn't a flat fill. */
+/* Two soft glows across the top of the page, blue left and violet right. */
 body {
-  background-image: radial-gradient(70rem 28rem at 50% -8rem, rgb(var(--accent) / 0.13), transparent 70%);
+  background-image:
+    radial-gradient(64rem 30rem at 12% -6rem, rgb(var(--accent) / 0.16), transparent 70%),
+    radial-gradient(52rem 28rem at 92% -4rem, rgb(var(--glow) / 0.13), transparent 70%);
   background-repeat: no-repeat;
+  font-feature-settings: "tnum" 1; /* every figure lines up in columns */
 }
 
-body {
-  font-feature-settings: "tnum" 1; /* every figure lines up in columns */
+/* A fixed blueprint grid that fades out towards the bottom of the screen. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgb(var(--grid) / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--grid) / 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: -1px -1px;
+  -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 85%);
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 85%);
 }
 
 * {
@@ -97,6 +121,48 @@ body {
   .vx-tabular {
     font-variant-numeric: tabular-nums;
   }
+  /* A panel on the grid background: slightly see-through, with a hairline highlight on top. */
+  .vx-panel {
+    background-color: rgb(var(--surface) / 0.82);
+    border: 1px solid rgb(var(--line));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.04),
+      0 1px 2px rgb(0 0 0 / 0.04);
+    backdrop-filter: blur(10px);
+  }
+  /* Small uppercase label used for column headers and section captions. */
+  .vx-caption {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(var(--muted));
+  }
+  /* Generated coin/currency badge: --h is a hue derived from the symbol. */
+  .vx-monogram {
+    background-color: hsl(var(--h) 80% 55% / 0.16);
+    color: hsl(var(--h) 70% 38%);
+  }
+  [data-theme="dark"] .vx-monogram {
+    color: hsl(var(--h) 85% 72%);
+  }
+}
+
+/* Ticker tape: the content is rendered twice and slides by half its width, looping seamlessly. */
+@keyframes vx-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.vx-marquee {
+  animation: vx-marquee var(--vx-marquee-duration, 120s) linear infinite;
+}
+.vx-marquee:hover {
+  animation-play-state: paused;
 }
 
 @keyframes vx-flash-up {
@@ -139,7 +205,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .vx-flash-up,
   .vx-flash-down,
-  .vx-track-fill {
+  .vx-track-fill,
+  .vx-marquee {
     animation: none;
   }
 }

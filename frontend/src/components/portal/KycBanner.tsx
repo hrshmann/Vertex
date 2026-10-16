@@ -12,7 +12,7 @@ export function KycBanner() {
 
   if (kyc.status === "UNDER_REVIEW") {
     return (
-      <div className="mb-6">
+      <div className="mb-3">
         <Notice tone="accent" icon={<ShieldCheck className="h-4 w-4" />} title="We're reviewing your documents">
           This usually takes one business day. We'll notify you when it's done.
         </Notice>
@@ -22,7 +22,7 @@ export function KycBanner() {
 
   const needsChanges = kyc.status === "ADDITIONAL_INFORMATION_REQUIRED" || kyc.status === "REJECTED";
   return (
-    <div className="mb-6">
+    <div className="mb-3">
       <Notice
         tone="warn"
         icon={<ShieldAlert className="h-4 w-4" />}

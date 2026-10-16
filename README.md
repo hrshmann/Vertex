@@ -35,9 +35,21 @@ What this means today:
 - **Crypto** prices are real exchange data in real USD (`isIndicative: false`). Chart history
   comes from Binance klines, scaled to USD at the live USDT-USD rate.
 - **Forex** quotes from Kraken are live but come from a crypto exchange's fiat markets, not
-  interbank or broker liquidity. EUR/USD, GBP/USD, USD/CHF, USD/CAD and AUD/USD are covered.
-  USD/JPY (too thin on Kraken) and NZD/USD (not listed) use the daily ECB rate. Live pairs also
-  get intraday candles from Kraken; daily-rate pairs only have `1D` candles.
+  interbank or broker liquidity. EUR/USD, GBP/USD, USD/CHF, USD/CAD, AUD/USD, EUR/GBP, EUR/CHF,
+  EUR/CAD and EUR/AUD are covered. The other pairs (JPY pairs are too thin on Kraken; crosses,
+  NZD and emerging-market currencies aren't listed) use the daily ECB rate, derived from one
+  USD-based table, and are marked "Daily" in the UI. Live pairs also get intraday candles from
+  Kraken; daily-rate pairs only have `1D` candles.
+
+### Listed markets
+
+The market list lives in `database/backend/src/services/marketData/instrumentCatalog.ts`: 71
+coins (each must trade as BASE-USD on Coinbase and BASEUSDT on Binance) and 44 forex pairs (both
+currencies must be published by the ECB). At startup the server adds any catalog market missing
+from the `instruments` table, so listing a market is a code change and a deploy, with no
+migration. Sparklines for the market list are fetched server-side every 5 minutes
+(`sparklines.ts`, served at `GET /api/markets/sparklines`). Coin logos are in
+`frontend/public/coins/`; coins without one get a generated badge.
 - Every forex quote stays `isIndicative: true` end-to-end (API, WebSocket events, UI).
 
 ### Upgrading forex to broker-grade prices

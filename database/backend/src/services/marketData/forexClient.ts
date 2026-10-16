@@ -23,25 +23,27 @@ export interface ForexPrimaryFeed {
  *
  * To get real-time, executable forex pricing, connect a licensed forex data/broker API
  * (e.g. a broker that offers a demo/live REST+WS feed with an API key) — see backend/README.md
- * "Upgrading the forex feed". This client is intentionally swappable: replace its internals,
- * the ForexProvider interface in services/trading stays the same.
+ * "Upgrading the forex feed".
+ *
+ * Every listed forex pair is derived from one USD-based rate table (GBP/JPY = JPY per USD ÷ GBP
+ * per USD), so a pair can be listed as long as the ECB publishes both of its currencies.
  */
 const ILLUSTRATIVE_SPREAD_PCT = 0.0006; // ~0.06%, roughly representative of a retail EUR/USD spread
 
-type PairConfig = { symbol: string; invert: boolean };
+/** Enough calendar days to span two ECB publications across weekends and holidays. */
+const HISTORY_DAYS = 10;
 
-// All instruments quoted against USD on one side; Frankfurter base=USD gives USD->X rates.
-// EUR/USD, GBP/USD, AUD/USD, NZD/USD are conventionally quoted as "how many USD per 1 unit",
-// i.e. the inverse of Frankfurter's USD-based rate.
-const PAIRS: PairConfig[] = [
-  { symbol: "EUR/USD", invert: true },
-  { symbol: "GBP/USD", invert: true },
-  { symbol: "USD/JPY", invert: false },
-  { symbol: "USD/CHF", invert: false },
-  { symbol: "AUD/USD", invert: true },
-  { symbol: "USD/CAD", invert: false },
-  { symbol: "NZD/USD", invert: true },
-];
+/**
+ * The rate of `pair` (e.g. "GBP/JPY": yen per pound) from one day's USD-based rates, or null if
+ * the ECB doesn't publish either currency.
+ */
+export function crossRate(pair: string, usdRates: Record<string, number>): number | null {
+  const [base, quote] = pair.split("/");
+  const perUsd = (ccy: string) => (ccy === "USD" ? 1 : usdRates[ccy]);
+  const b = perUsd(base);
+  const q = perUsd(quote);
+  return b > 0 && q > 0 ? q / b : null;
+}
 
 export class ForexIndicativeClient {
   private timer: NodeJS.Timeout | null = null;
@@ -58,39 +60,41 @@ export class ForexIndicativeClient {
   }
 
   private async pollOnce() {
+    const instruments = listInstruments().filter((i) => i.class === "FOREX");
+    if (instruments.length === 0) return;
     try {
-      const targets = ["EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD"].join(",");
-      const url = `${env.forexIndicativeBase}/latest?from=USD&to=${targets}`;
-      const res = await fetch(url);
+      // The last ~10 days of USD-based rates: the latest publication is the price, and the one
+      // before it gives the day-over-day change.
+      const start = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
+      const res = await fetch(`${env.forexIndicativeBase}/${start}..?from=USD`);
       if (!res.ok) throw new Error(`Frankfurter responded ${res.status}`);
-      const body = (await res.json()) as { date: string; rates: Record<string, number> };
+      const body = (await res.json()) as { rates: Record<string, Record<string, number>> };
+      const dates = Object.keys(body.rates).sort();
+      const latestDate = dates[dates.length - 1];
+      if (!latestDate) return;
+      const latest = body.rates[latestDate];
+      const previous = dates.length > 1 ? body.rates[dates[dates.length - 2]] : null;
 
-      for (const pair of PAIRS) {
-        if (this.primary.hasFreshQuote(pair.symbol)) continue;
-        const instrument = listInstruments().find((i) => i.symbol === pair.symbol);
-        if (!instrument) continue;
-        const [base, quoteCcy] = pair.symbol.split("/");
-        const ccyKey = pair.invert ? base : quoteCcy; // the non-USD currency in the pair
-        const usdRate = body.rates[ccyKey];
-        if (!usdRate) continue;
-
-        const mid = pair.invert ? 1 / usdRate : usdRate;
-        const bid = mid * (1 - ILLUSTRATIVE_SPREAD_PCT / 2);
-        const ask = mid * (1 + ILLUSTRATIVE_SPREAD_PCT / 2);
+      for (const instrument of instruments) {
+        if (this.primary.hasFreshQuote(instrument.symbol)) continue;
+        const mid = crossRate(instrument.symbol, latest);
+        if (!mid) continue;
+        const prev = previous ? crossRate(instrument.symbol, previous) : null;
 
         const quote: Quote = {
           instrumentId: instrument.id,
           symbol: instrument.symbol,
-          bid,
-          ask,
+          bid: mid * (1 - ILLUSTRATIVE_SPREAD_PCT / 2),
+          ask: mid * (1 + ILLUSTRATIVE_SPREAD_PCT / 2),
           last: mid,
           high24h: null,
           low24h: null,
           volume24h: null,
-          change24hPct: null,
+          // Change since the previous ECB publication (usually the previous business day).
+          change24hPct: prev ? ((mid - prev) / prev) * 100 : null,
           isIndicative: true,
           source: "frankfurter",
-          sourceTs: new Date(body.date).toISOString(),
+          sourceTs: new Date(latestDate).toISOString(),
         };
         await upsertQuote(quote);
       }

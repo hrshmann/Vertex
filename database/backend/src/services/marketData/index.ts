@@ -1,6 +1,7 @@
 import { loadInstrumentCache } from "./instrumentCache";
 import { binanceFeed, coinbaseFeed, ecbFeed, krakenFeed } from "./feeds";
 import { onQuoteUpdate } from "./quoteCache";
+import { startSparklines } from "./sparklines";
 import { createTickThrottle } from "./tickThrottle";
 import { Quote } from "../../types";
 import { WsHub } from "../ws/wsHub";
@@ -18,10 +19,12 @@ export async function startMarketData(hub: WsHub) {
 
   const feeds = [coinbaseFeed, binanceFeed, krakenFeed, ecbFeed];
   for (const feed of feeds) feed.start();
+  const sparklines = startSparklines();
 
   return {
     stop() {
       for (const feed of feeds) feed.stop();
+      sparklines.stop();
       broadcast.stop();
     },
   };

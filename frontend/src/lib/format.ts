@@ -1,16 +1,34 @@
-const FIAT = new Set(["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD"]);
+import { CURRENCIES } from "./instruments";
 
 /**
- * Display precision for a price. Forex follows market convention (5 decimals, 3 for JPY
- * pairs); crypto scales with price so low-priced coins (e.g. XRP) keep their real precision.
+ * Display precision for a price. Forex follows market convention: 5 decimals, 3 for pairs
+ * worth over 100 (JPY), fewer for currencies like KRW. Crypto scales with price so low-priced
+ * coins keep their real precision (PEPE and SHIB trade in millionths of a dollar).
  */
 export function priceDecimals(symbol: string, price?: number | null): number {
   const [base, quote] = symbol.split("/");
-  if (FIAT.has(base) && FIAT.has(quote)) return quote === "JPY" ? 3 : 5;
   const magnitude = Math.abs(price ?? 100);
+  if (CURRENCIES[base] && CURRENCIES[quote]) {
+    if (quote === "JPY" || magnitude >= 100) return magnitude >= 1000 ? 2 : 3;
+    return magnitude >= 10 ? 4 : 5;
+  }
   if (magnitude >= 100) return 2;
   if (magnitude >= 1) return 4;
-  return 6;
+  if (magnitude >= 0.01) return 5;
+  if (magnitude >= 0.0001) return 7;
+  return 10;
+}
+
+/** 1.24B, 380.5M, 12.3K: volumes and other large amounts in a narrow column. */
+export function formatCompact(value: number | null | undefined, prefix = ""): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return prefix + new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: value >= 1000 ? 1 : 2 }).format(value);
+}
+
+/** +1.24% / -0.80%. */
+export function formatPercent(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });

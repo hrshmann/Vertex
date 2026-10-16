@@ -11,6 +11,7 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-plex)", "ui-sans-serif", "system-ui", "sans-serif"],
         condensed: ["var(--font-plex-condensed)", "var(--font-plex)", "ui-sans-serif", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       fontSize: {
         // Scale for a dense, data-heavy interface: 12 / 13 / 14 / 16 / 20 / 28 / 40.
@@ -30,6 +31,7 @@ const config: Config = {
         ink: token("ink"),
         muted: token("muted"),
         accent: { DEFAULT: token("accent"), soft: token("accent-soft"), ink: token("accent-ink") },
+        glow: token("glow"),
         buy: { DEFAULT: token("buy"), soft: token("buy-soft") },
         sell: { DEFAULT: token("sell"), soft: token("sell-soft") },
         warn: { DEFAULT: token("warn"), soft: token("warn-soft") },

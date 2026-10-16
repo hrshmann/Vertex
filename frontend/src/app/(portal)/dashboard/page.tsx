@@ -1,19 +1,18 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Bell, Check, Circle, Clock, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useMarkets } from "@/lib/useMarkets";
 import { useKyc, useNotifications } from "@/lib/usePortalData";
-import { formatDateTime, priceDecimals, timeAgo } from "@/lib/format";
-import { instrumentName } from "@/lib/instruments";
+import { formatDateTime, timeAgo } from "@/lib/format";
 import { ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState, Skeleton } from "@/components/ui/States";
-import { PriceFlash } from "@/components/PriceFlash";
-
-const WATCH = ["BTC/USD", "ETH/USD", "SOL/USD", "EUR/USD", "GBP/USD", "USD/JPY"];
+import { MarketPulse } from "@/components/markets/MarketPulse";
+import { MarketTable } from "@/components/markets/MarketTable";
+import { Movers } from "@/components/markets/Movers";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -22,59 +21,36 @@ function greeting() {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { rows } = useMarkets();
-  const watch = WATCH.map((s) => rows.find((r) => r.symbol === s)).filter((r): r is NonNullable<typeof r> => !!r);
+  const { rows, loading } = useMarkets();
+  const router = useRouter();
+  const open = (symbol: string) => router.push(`/prices?symbol=${encodeURIComponent(symbol)}`);
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold">
-          {greeting()}
-          {user?.first_name ? `, ${user.first_name}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-muted">Your account and the markets at a glance.</p>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold">
+            {greeting()}
+            {user?.first_name ? `, ${user.first_name}` : ""}
+          </h1>
+          <p className="text-xs text-muted">Your account and the markets at a glance.</p>
+        </div>
+        <ButtonLink href="/prices" size="sm" variant="secondary">
+          Open the live terminal
+        </ButtonLink>
       </div>
 
-      <VerificationCard />
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <Panel
-          title="Live prices"
-          actions={<ButtonLink href="/prices" variant="ghost" size="sm">All prices and charts</ButtonLink>}
-          bodyClassName=""
-        >
-          <ul className="grid sm:grid-cols-2">
-            {watch.length === 0 &&
-              WATCH.map((s) => (
-                <li key={s} className="border-b border-line px-5 py-3.5">
-                  <Skeleton className="h-6" />
-                </li>
-              ))}
-            {watch.map((r) => {
-              const q = r.quote;
-              const change = q?.change24hPct ?? null;
-              return (
-                <li key={r.symbol} className="border-b border-line sm:odd:border-r">
-                  <Link href={`/prices?symbol=${encodeURIComponent(r.symbol)}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-raised">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{r.symbol}</p>
-                      <p className="truncate text-2xs text-muted">{instrumentName(r.symbol)}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <PriceFlash value={q?.last} decimals={priceDecimals(r.symbol, q?.last)} className="text-sm font-medium" />
-                      <p className={clsx("text-2xs vx-tabular", change == null ? "text-muted" : change >= 0 ? "text-buy" : "text-sell")}>
-                        {change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </Panel>
-
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_26rem]">
+        <VerificationCard />
         <RecentNotifications />
       </div>
+      <MarketPulse rows={rows} onSelect={open} />
+
+      <section aria-label="Watchlist" className="vx-panel flex max-h-[34rem] flex-col overflow-hidden rounded-panel">
+        <MarketTable rows={rows} loading={loading} onSelect={open} initialFilter="WATCH" className="flex-1" />
+      </section>
+
+      <Movers rows={rows} onSelect={open} />
     </div>
   );
 }
@@ -121,7 +97,7 @@ function VerificationCard() {
   return (
     <section
       aria-labelledby="verify-title"
-      className={clsx("rounded-panel border p-5 sm:p-6", needsChanges ? "border-warn/40 bg-warn-soft" : "border-line bg-surface")}
+      className={clsx("rounded-panel border p-5 sm:p-6", needsChanges ? "border-warn/40 bg-warn-soft" : "vx-panel")}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
@@ -154,20 +130,25 @@ function VerificationCard() {
 
 function RecentNotifications() {
   const { notifications, loaded } = useNotifications();
-  const recent = notifications.slice(0, 5);
+  const recent = notifications.slice(0, 3);
   return (
-    <Panel title="Notifications" bodyClassName="">
+    <Panel title="Notifications" className="lg:max-h-[16rem] lg:overflow-y-auto" bodyClassName="">
       {!loaded ? (
         <div className="space-y-3 p-5">
           <Skeleton className="h-5" />
           <Skeleton className="h-5" />
         </div>
       ) : recent.length === 0 ? (
-        <EmptyState icon={<Bell className="h-5 w-5" />} title="Nothing yet" body="Verification updates and security alerts appear here." />
+        <EmptyState
+          icon={<Bell className="h-5 w-5" />}
+          title="Nothing yet"
+          body="Verification updates and security alerts appear here."
+          className="!py-5"
+        />
       ) : (
         <ul>
           {recent.map((n) => (
-            <li key={n.id} className="border-b border-line px-5 py-3 last:border-0">
+            <li key={n.id} className="border-b border-line px-5 py-2.5 last:border-0">
               <p className={clsx("text-sm", n.read_at ? "text-ink" : "font-medium text-ink")}>{n.title}</p>
               {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{n.body}</p>}
               <p className="mt-1 text-2xs text-muted">{timeAgo(n.created_at)}</p>
